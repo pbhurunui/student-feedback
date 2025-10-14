@@ -81,6 +81,25 @@
         .text-primary { color: var(--color-primary); }
         .bg-primary { background-color: var(--color-primary); }
         .text-secondary { color: var(--color-secondary); }
+
+        .subject-button {
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: 2px solid var(--color-primary);
+            background-color: var(--color-card-bg);
+            color: var(--color-primary);
+        }
+        .subject-button.active {
+            background-color: var(--color-primary);
+            color: white;
+            box-shadow: 0 4px 6px rgba(0, 95, 115, 0.3);
+        }
+        .dark-mode .subject-button.active {
+             box-shadow: 0 4px 6px rgba(148, 210, 189, 0.3);
+        }
     </style>
 </head>
 <body class="text-dark">
@@ -112,7 +131,11 @@
         <section id="kpi-dashboard" class="mb-16 animated-section" style="animation-delay: 0.2s;">
             <div class="text-center mb-8 max-w-3xl mx-auto">
                 <h2 class="text-3xl font-bold text-primary mb-3">Key Performance Snapshot: The Radar</h2>
-                <p class="text-lg text-gray-500 dark:text-gray-300">The **Radar Chart** visually compares your performance across five core dimensions in T1 vs. T3. Notice the major success in **Feeling Safe & Heard (100%)** and **Clarity (89%)**, but a sharp contraction in **Interest (down to 56%)** now flags the most critical area for immediate attention.</p>
+                <!-- Subject Filter -->
+                <div id="subject-selector" class="flex justify-center flex-wrap gap-4 mb-6">
+                    <!-- Buttons will be injected here by JavaScript -->
+                </div>
+                <p id="kpi-description" class="text-lg text-gray-500 dark:text-gray-300">Viewing **Overall** results. The chart visually compares your performance across five core dimensions in T1 vs. T3. Notice the major success in **Feeling Safe & Heard (100%)** and **Clarity (89%)**, but a sharp contraction in **Interest (down to 56%)** now flags the most critical area for immediate attention.</p>
             </div>
             <div class="kpi-card p-4 md:p-8">
                 <div class="chart-container max-w-5xl mx-auto">
@@ -123,8 +146,8 @@
         
         <section id="qualitative-composition" class="mb-16 animated-section" style="animation-delay: 0.4s;">
             <div class="text-center mb-8 max-w-3xl mx-auto">
-                <h2 class="text-3xl font-bold text-secondary mb-3">Qualitative Feedback Composition</h2>
-                <p class="text-lg text-gray-500 dark:text-gray-300">This **Donut Chart** shows the breakdown of all open-ended comments. The proportion of **Improvement** comments has increased, reinforcing the need to address the drop in lesson interest and engagement.</p>
+                <h2 class="text-3xl font-bold text-secondary mb-3">Qualitative Feedback Composition (Overall T3)</h2>
+                <p class="text-lg text-gray-500 dark:text-gray-300">This **Donut Chart** shows the breakdown of all open-ended comments (Overall T3). The proportion of **Improvement** comments has increased, reinforcing the need to address the drop in lesson interest and engagement.</p>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
                 <div class="kpi-card p-6 md:p-8 col-span-1 chart-container">
@@ -132,12 +155,10 @@
                 </div>
                 <div class="md:col-span-2 space-y-4">
                     <div class="kpi-card p-6 border-l-4 border-secondary dark:border-light-accent">
-                        <!-- UPDATED DATA -->
                         <p class="text-2xl font-bold text-secondary">67% Positive</p>
                         <p class="text-gray-600 dark:text-gray-300">Comments focused on strengths: supportive environment, approachability, and successful practical activities.</p>
                     </div>
                     <div class="kpi-card p-6 border-l-4 border-[#9b6d00] dark:border-[#e9d8a6]">
-                         <!-- UPDATED DATA -->
                         <p class="text-2xl font-bold text-[#9b6d00] dark:text-[#e9d8a6]">33% Improvement</p>
                         <p class="text-gray-600 dark:text-gray-300">Comments focused on actionable areas: primarily lesson **engagement**, instructional pacing, and feedback clarity on grading.</p>
                     </div>
@@ -147,7 +168,7 @@
 
         <section id="action-plan" class="animated-section" style="animation-delay: 0.6s;">
             <div class="text-center mb-8">
-                <h2 class="text-3xl font-bold text-primary mb-3">Actionable Next Steps</h2>
+                <h2 class="text-3xl font-bold text-primary mb-3">Actionable Next Steps (Based on Overall Data)</h2>
                 <p class="text-lg text-gray-500 dark:text-gray-300 max-w-3xl mx-auto">Translate data into deliberate practice using three targeted strategies for the next term, focusing heavily on engagement.</p>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -204,6 +225,37 @@
                 dangerDark: '#7f8a65'
             }
         };
+        
+        // --- Subject-Specific Data Structure ---
+        // Favorable Rates (%) for T1 vs T3 in the order: [Clarity, Interest, Comfort, Feedback Speed, Safe & Heard]
+        const ALL_DATA = {
+            'Overall': {
+                T1: [89, 89, 89, 67, 100],
+                T3: [89, 56, 89, 89, 100],
+                description: "The chart shows the overall results. Notice the major success in **Feeling Safe & Heard (100%)** and **Clarity (89%)**, but a sharp contraction in **Interest (down to 56%)** now flags the most critical area for immediate attention."
+            },
+            'Music': {
+                T1: [92, 92, 92, 62, 100],
+                T3: [83, 50, 83, 83, 100],
+                description: "Viewing **Music** results. The drop in **Lesson Interest** from 92% to **50%** is particularly stark here, while **Feedback Speed** significantly improved from 62% to 83%."
+            },
+            'Ako': {
+                T1: [100, 75, 100, 100, 100],
+                T3: [100, 50, 100, 100, 100],
+                description: "Viewing **Ako** results. All KPIs remain excellent except for **Lesson Interest**, which fell from 75% to **50%**, indicating a need for more engaging content."
+            },
+            'Digital Technology': {
+                T1: [0, 100, 0, 0, 100], // Low T1 N=1 is highly volatile, 0% Clarity due to one 'Okay' response (not 'Clear'/'Very Clear')
+                T3: [100, 50, 100, 50, 50],
+                description: "Viewing **Digital Technology** results. Note the high volatility due to low sample size (N=1 in T1, N=2 in T3). **Safe & Heard** dropped to 50% and **Interest** fell to 50%."
+            }
+        };
+
+        let currentSubject = 'Overall';
+        let kpiChartInstance = null;
+        let donutChartInstance = null;
+        
+        // --- Utility Functions ---
 
         function getCssVar(name) {
             return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -219,7 +271,6 @@
                 root.style.setProperty('--color-danger-accent', theme.dangerAccent);
                 root.style.setProperty('--color-danger-dark', theme.dangerDark);
                 
-                // Re-render charts to pick up new colors
                 renderCharts();
             }
         }
@@ -230,7 +281,6 @@
             const isDarkMode = body.classList.contains('dark-mode');
             document.getElementById('modeIcon').textContent = isDarkMode ? '☀️' : '🌙';
 
-            // Re-render charts to update axis/text colors
             renderCharts();
         }
 
@@ -254,11 +304,57 @@
             return lines;
         }
 
+        // --- Subject Selector Logic ---
+
+        function setSubject(subjectName) {
+            currentSubject = subjectName;
+            
+            // Update active state of buttons
+            const buttons = document.querySelectorAll('#subject-selector .subject-button');
+            buttons.forEach(button => {
+                button.classList.remove('active');
+                if (button.dataset.subject === subjectName) {
+                    button.classList.add('active');
+                }
+            });
+
+            // Update description text
+            const descElement = document.getElementById('kpi-description');
+            if (ALL_DATA[subjectName]) {
+                descElement.innerHTML = ALL_DATA[subjectName].description;
+            } else {
+                descElement.textContent = ALL_DATA['Overall'].description;
+            }
+            
+            renderCharts();
+        }
+
+        function initializeSubjectSelector() {
+            const selectorDiv = document.getElementById('subject-selector');
+            const subjects = Object.keys(ALL_DATA);
+
+            subjects.forEach(subject => {
+                const button = document.createElement('button');
+                button.textContent = subject;
+                button.classList.add('subject-button');
+                button.dataset.subject = subject;
+                button.onclick = () => setSubject(subject);
+                selectorDiv.appendChild(button);
+            });
+            
+            // Set initial active state to 'Overall'
+            setSubject('Overall');
+        }
+
+        // --- Chart Creation Functions ---
+
         function createRadarChart(ctx) {
             const primaryColor = getCssVar('--color-primary');
             const secondaryColor = getCssVar('--color-secondary');
             const lightAccentColor = getCssVar('--color-light-accent');
             const globalFontColor = document.body.classList.contains('dark-mode') ? '#e9ecef' : '#4A5568';
+            
+            const subjectData = ALL_DATA[currentSubject] || ALL_DATA['Overall'];
             
             const kpiData = {
                 labels: [
@@ -271,8 +367,7 @@
                 datasets: [
                     {
                         label: 'Term 1 Favorable Rate (%)',
-                        // Original data: [88.9, 88.9, 88.9, 66.7, 100.0] -> Rounded
-                        data: [89, 89, 89, 67, 100], 
+                        data: subjectData.T1, 
                         fill: true,
                         backgroundColor: lightAccentColor + '40', // Accent with opacity
                         borderColor: lightAccentColor,
@@ -283,8 +378,7 @@
                     },
                     {
                         label: 'Term 3 Favorable Rate (%)',
-                        // NEW DATA: [88.9, 55.6, 88.9, 88.9, 100.0] -> Rounded
-                        data: [89, 56, 89, 89, 100], 
+                        data: subjectData.T3, 
                         fill: true,
                         backgroundColor: secondaryColor + '40', // Secondary with opacity
                         borderColor: secondaryColor, 
@@ -340,7 +434,6 @@
              
              const donutData = {
                 labels: ['Positive/Working Well', 'Improvements/Suggestions'],
-                // NEW DATA: [66.7, 33.3] -> Rounded
                 datasets: [{
                     data: [67, 33],
                     backgroundColor: [
@@ -390,9 +483,7 @@
             });
         }
 
-
-        let kpiChartInstance = null;
-        let donutChartInstance = null;
+        // --- Main Render Function ---
 
         function renderCharts() {
             if (kpiChartInstance) kpiChartInstance.destroy();
@@ -406,13 +497,13 @@
         }
         
         window.onload = function() {
-            renderCharts();
+            initializeSubjectSelector();
+            // renderCharts is called within initializeSubjectSelector
             // Set initial icons for the toggle
             document.getElementById('modeIcon').textContent = document.body.classList.contains('dark-mode') ? '☀️' : '🌙';
             document.getElementById('themeSelector').value = 'brilliant-blues';
         };
 
-        // Note: NO SVG nor Mermaid JS was used in this document.
     </script>
 
 </body>
