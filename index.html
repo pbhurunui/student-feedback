@@ -91,6 +91,9 @@
             border: 2px solid var(--color-primary);
             background-color: var(--color-card-bg);
             color: var(--color-primary);
+            /* Added z-index and display block just in case of layering/layout issues */
+            z-index: 10; 
+            display: block !important;
         }
         .subject-button.active {
             background-color: var(--color-primary);
@@ -331,6 +334,13 @@
 
         function initializeSubjectSelector() {
             const selectorDiv = document.getElementById('subject-selector');
+            
+            // FIX: Ensure selectorDiv is found before attempting to append.
+            if (!selectorDiv) {
+                console.error("The subject-selector div was not found in the DOM.");
+                return; 
+            }
+
             const subjects = Object.keys(ALL_DATA);
 
             subjects.forEach(subject => {
@@ -497,8 +507,10 @@
         }
         
         window.onload = function() {
+            // FIX: This function now includes a check to ensure the DOM element is present.
             initializeSubjectSelector();
-            // renderCharts is called within initializeSubjectSelector
+            // renderCharts is called inside setSubject('Overall') which is called by initializeSubjectSelector
+            
             // Set initial icons for the toggle
             document.getElementById('modeIcon').textContent = document.body.classList.contains('dark-mode') ? '☀️' : '🌙';
             document.getElementById('themeSelector').value = 'brilliant-blues';
