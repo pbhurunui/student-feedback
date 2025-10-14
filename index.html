@@ -93,7 +93,7 @@
             color: var(--color-primary);
             /* Added z-index and display block just in case of layering/layout issues */
             z-index: 10; 
-            display: block !important;
+            display: inline-block !important; /* Changed from block to inline-block for better layout */
         }
         .subject-button.active {
             background-color: var(--color-primary);
@@ -169,32 +169,36 @@
             </div>
         </section>
 
+        <!-- ACTION PLAN SECTION - Content is now dynamic -->
         <section id="action-plan" class="animated-section" style="animation-delay: 0.6s;">
             <div class="text-center mb-8">
-                <h2 class="text-3xl font-bold text-primary mb-3">Actionable Next Steps (Based on Overall Data)</h2>
-                <p class="text-lg text-gray-500 dark:text-gray-300 max-w-3xl mx-auto">Translate data into deliberate practice using three targeted strategies for the next term, focusing heavily on engagement.</p>
+                <h2 class="text-3xl font-bold text-primary mb-3">Actionable Next Steps (Targeted Strategies)</h2>
+                <p class="text-lg text-gray-500 dark:text-gray-300 max-w-3xl mx-auto">Translate data into deliberate practice using three targeted strategies for the next term.</p>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- Action 1 -->
                 <div class="kpi-card p-6 text-center group animated-section" style="animation-delay: 0.8s;">
                     <div class="mx-auto bg-primary text-white w-16 h-16 rounded-full flex items-center justify-center mb-4 transition duration-300 group-hover:scale-110">
                         <span class="text-3xl font-bold">1</span>
                     </div>
-                    <h3 class="text-xl font-bold mb-2 text-primary dark:text-light-accent">Priority: Boost Engagement</h3>
-                    <p class="text-gray-600 dark:text-gray-300">Designate specific activities to make "boring tasks seem engaging" by integrating more variety, technology, or creative practical applications.</p>
+                    <h3 id="action-title-1" class="text-xl font-bold mb-2 text-primary dark:text-light-accent">Priority: Boost Engagement</h3>
+                    <p id="action-desc-1" class="text-gray-600 dark:text-gray-300">Designate specific activities to make "boring tasks seem engaging" by integrating more variety, technology, or creative practical applications.</p>
                 </div>
+                <!-- Action 2 -->
                 <div class="kpi-card p-6 text-center group animated-section" style="animation-delay: 1.0s;">
                      <div class="mx-auto bg-secondary text-white w-16 h-16 rounded-full flex items-center justify-center mb-4 transition duration-300 group-hover:scale-110">
                         <span class="text-3xl font-bold">2</span>
                     </div>
-                    <h3 class="text-xl font-bold mb-2 text-primary dark:text-light-accent">Focus: Pacing Control</h3>
-                    <p class="text-gray-600 dark:text-gray-300">Continue to check for understanding, but ensure specific topics that students found challenging ("certain days, certain topics") are slowed down and reinforced.</p>
+                    <h3 id="action-title-2" class="text-xl font-bold mb-2 text-primary dark:text-light-accent">Focus: Pacing Control</h3>
+                    <p id="action-desc-2" class="text-gray-600 dark:text-gray-300">Continue to check for understanding, but ensure specific topics that students found challenging ("certain days, certain topics") are slowed down and reinforced.</p>
                 </div>
+                <!-- Action 3 -->
                 <div class="kpi-card p-6 text-center group animated-section" style="animation-delay: 1.2s;">
                      <div class="mx-auto bg-light-accent text-primary w-16 h-16 rounded-full flex items-center justify-center mb-4 transition duration-300 group-hover:scale-110">
                         <span class="text-3xl font-bold">3</span>
                     </div>
-                    <h3 class="text-xl font-bold mb-2 text-primary dark:text-light-accent">Focus: Feedback Clarity</h3>
-                    <p class="text-gray-600 dark:text-gray-300">Ensure feedback not only covers what was done, but explicitly details **"what you need to do"** next regarding grading and success criteria.</p>
+                    <h3 id="action-title-3" class="text-xl font-bold mb-2 text-primary dark:text-light-accent">Focus: Feedback Clarity</h3>
+                    <p id="action-desc-3" class="text-gray-600 dark:text-gray-300">Ensure feedback not only covers what was done, but explicitly details **"what you need to do"** next regarding grading and success criteria.</p>
                 </div>
             </div>
         </section>
@@ -229,28 +233,48 @@
             }
         };
         
-        // --- Subject-Specific Data Structure ---
+        // --- Subject-Specific Data Structure with Action Plans ---
         // Favorable Rates (%) for T1 vs T3 in the order: [Clarity, Interest, Comfort, Feedback Speed, Safe & Heard]
         const ALL_DATA = {
             'Overall': {
                 T1: [89, 89, 89, 67, 100],
                 T3: [89, 56, 89, 89, 100],
-                description: "The chart shows the overall results. Notice the major success in **Feeling Safe & Heard (100%)** and **Clarity (89%)**, but a sharp contraction in **Interest (down to 56%)** now flags the most critical area for immediate attention."
+                description: "The chart shows the overall results. Notice the major success in **Feeling Safe & Heard (100%)** and **Clarity (89%)**, but a sharp contraction in **Interest (down to 56%)** now flags the most critical area for immediate attention.",
+                actionPlan: {
+                    1: { title: 'Priority: Boost Engagement', description: 'Designate specific activities to make "boring tasks seem engaging" by integrating more variety, technology, or creative practical applications.' },
+                    2: { title: 'Focus: Pacing Control', description: 'Continue to check for understanding, but ensure specific topics that students found challenging ("certain days, certain topics") are slowed down and reinforced.' },
+                    3: { title: 'Focus: Feedback Clarity', description: 'Ensure feedback not only covers what was done, but explicitly details **"what you need to do"** next regarding grading and success criteria.' }
+                }
             },
             'Music': {
                 T1: [92, 92, 92, 62, 100],
                 T3: [83, 50, 83, 83, 100],
-                description: "Viewing **Music** results. The drop in **Lesson Interest** from 92% to **50%** is particularly stark here, while **Feedback Speed** significantly improved from 62% to 83%."
+                description: "Viewing **Music** results. The drop in **Lesson Interest** from 92% to **50%** is particularly stark here, while **Feedback Speed** significantly improved from 62% to 83%.",
+                actionPlan: {
+                    1: { title: 'Priority: Increase Practical Application', description: 'Focus on project-based learning and practical skills that align with student interests to counter the sharp drop in engagement (92% to 50%).' },
+                    2: { title: 'Focus: Vary Theory Instruction', description: 'Address feedback about "certain topics" being slow by using more diverse methods (simulations, group study) to reinforce music theory concepts.' },
+                    3: { title: 'Sustain: Clear Feedback Speed', description: 'Maintain the high 83% favorable rate for feedback speed, ensuring students know *exactly* what criteria were used in grading.' }
+                }
             },
             'Ako': {
                 T1: [100, 75, 100, 100, 100],
                 T3: [100, 50, 100, 100, 100],
-                description: "Viewing **Ako** results. All KPIs remain excellent except for **Lesson Interest**, which fell from 75% to **50%**, indicating a need for more engaging content."
+                description: "Viewing **Ako** results. All KPIs remain excellent except for **Lesson Interest**, which fell from 75% to **50%**, indicating a need for more engaging content.",
+                actionPlan: {
+                    1: { title: 'Priority: Define Purpose & Relevance', description: 'Explicitly explain the learning goals and real-world relevance of every Ako activity to address the comment "You don\'t teach me so I\'m not sure."' },
+                    2: { title: 'Focus: Introduce New Activities', description: 'Integrate new group challenges or social-emotional learning activities to re-boost interest, which dropped 25 percentage points.' },
+                    3: { title: 'Sustain: Positive Environment', description: 'Maintain the 100% scores across Clarity, Comfort, and Safety to ensure the class remains a highly trusted and secure space.' }
+                }
             },
             'Digital Technology': {
-                T1: [0, 100, 0, 0, 100], // Low T1 N=1 is highly volatile, 0% Clarity due to one 'Okay' response (not 'Clear'/'Very Clear')
+                T1: [0, 100, 0, 0, 100], 
                 T3: [100, 50, 100, 50, 50],
-                description: "Viewing **Digital Technology** results. Note the high volatility due to low sample size (N=1 in T1, N=2 in T3). **Safe & Heard** dropped to 50% and **Interest** fell to 50%."
+                description: "Viewing **Digital Technology** results. Note the high volatility due to low sample size (N=1 in T1, N=2 in T3). **Safe & Heard** dropped to 50% and **Interest** fell to 50%.",
+                actionPlan: {
+                    1: { title: 'Immediate: Safe & Heard Check-in', description: 'Address the 50% drop in Feeling Safe & Heard immediately with an anonymous feedback opportunity and 1:1 check-ins to rebuild trust.' },
+                    2: { title: 'Priority: Project-Based Interest', description: 'Restore Lesson Interest (down to 50%) by introducing an exciting, student-choice, project-based unit focused on modern tech tools.' },
+                    3: { title: 'Focus: Clear Feedback Loop', description: 'Use the improvement in Clarity (up to 100%) to provide a structured, easy-to-follow process for submitting work and receiving constructive feedback.' }
+                }
             }
         };
 
@@ -306,13 +330,29 @@
             lines.push(currentLine);
             return lines;
         }
+        
+        // --- Action Plan Update Logic ---
+        function updateActionPlan() {
+            const subjectData = ALL_DATA[currentSubject];
+            if (!subjectData || !subjectData.actionPlan) return;
+
+            const plan = subjectData.actionPlan;
+
+            for (let i = 1; i <= 3; i++) {
+                const titleElement = document.getElementById(`action-title-${i}`);
+                const descElement = document.getElementById(`action-desc-${i}`);
+
+                if (titleElement) titleElement.textContent = plan[i].title;
+                if (descElement) descElement.textContent = plan[i].description;
+            }
+        }
 
         // --- Subject Selector Logic ---
 
         function setSubject(subjectName) {
             currentSubject = subjectName;
             
-            // Update active state of buttons
+            // 1. Update active state of buttons
             const buttons = document.querySelectorAll('#subject-selector .subject-button');
             buttons.forEach(button => {
                 button.classList.remove('active');
@@ -321,7 +361,7 @@
                 }
             });
 
-            // Update description text
+            // 2. Update description text
             const descElement = document.getElementById('kpi-description');
             if (ALL_DATA[subjectName]) {
                 descElement.innerHTML = ALL_DATA[subjectName].description;
@@ -329,13 +369,16 @@
                 descElement.textContent = ALL_DATA['Overall'].description;
             }
             
+            // 3. Update the charts
             renderCharts();
+
+            // 4. Update the Action Plan
+            updateActionPlan();
         }
 
         function initializeSubjectSelector() {
             const selectorDiv = document.getElementById('subject-selector');
             
-            // FIX: Ensure selectorDiv is found before attempting to append.
             if (!selectorDiv) {
                 console.error("The subject-selector div was not found in the DOM.");
                 return; 
@@ -352,7 +395,7 @@
                 selectorDiv.appendChild(button);
             });
             
-            // Set initial active state to 'Overall'
+            // Set initial active state and render all content to 'Overall'
             setSubject('Overall');
         }
 
@@ -507,9 +550,7 @@
         }
         
         window.onload = function() {
-            // FIX: This function now includes a check to ensure the DOM element is present.
             initializeSubjectSelector();
-            // renderCharts is called inside setSubject('Overall') which is called by initializeSubjectSelector
             
             // Set initial icons for the toggle
             document.getElementById('modeIcon').textContent = document.body.classList.contains('dark-mode') ? '☀️' : '🌙';
