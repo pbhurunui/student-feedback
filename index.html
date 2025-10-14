@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Feedback Analysis: T1 vs. T3 2025</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Default Brilliant Blues Palette */
+            --color-primary: #005f73;
+            --color-secondary: #0a9396;
+            --color-light-accent: #94d2bd;
+            --color-danger-accent: #e9d8a6; 
+            --color-danger-dark: #9b6d00;
+            
+            --color-dark: #001219;
+            --color-text: var(--color-dark);
+            --color-bg: #f8f9fa;
+            --color-card-bg: white;
+            --color-shadow: rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s, color 0.3s;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+        }
+
+        .dark-mode {
+            --color-text: #e9ecef;
+            --color-bg: #1f2937;
+            --color-card-bg: #374151;
+            --color-shadow: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Animation for a flowy entrance */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translate3d(0, 20px, 0);
+            }
+            to {
+                opacity: 1;
+                transform: translate3d(0, 0, 0);
+            }
+        }
+        .animated-section {
+            animation: fadeInUp 0.8s ease-out both;
+        }
+
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 45vh;
+            max-height: 500px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 55vh;
+                max-height: 550px;
+            }
+        }
+        .kpi-card {
+            background-color: var(--color-card-bg);
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px var(--color-shadow), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s, color 0.3s;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+        .kpi-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px var(--color-shadow), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .text-primary { color: var(--color-primary); }
+        .bg-primary { background-color: var(--color-primary); }
+        .text-secondary { color: var(--color-secondary); }
+    </style>
+</head>
+<body class="text-dark">
+
+    <header class="bg-primary text-white py-8 text-center relative">
+        <div class="container mx-auto px-4">
+            
+            <!-- Theme and Mode Selector -->
+            <div class="absolute top-4 right-4 flex space-x-2 items-center">
+                 <label for="themeSelector" class="text-sm font-medium mr-2 hidden sm:block">Theme:</label>
+                <select id="themeSelector" onchange="setTheme(this.value)" class="p-2 rounded-lg text-sm bg-white/20 text-white border border-white/30 cursor-pointer">
+                    <option value="brilliant-blues">Brilliant Blues</option>
+                    <option value="energetic-reds">Energetic Reds</option>
+                    <option value="muted-greens">Muted Greens</option>
+                </select>
+                
+                <button id="modeToggle" onclick="toggleLightDark()" class="p-2 rounded-full bg-white/20 hover:bg-white/30 transition duration-300">
+                    <span id="modeIcon" class="text-xl">🌙</span>
+                </button>
+            </div>
+            
+            <h1 class="text-4xl md:text-5xl font-bold mb-2">Student Feedback Analysis</h1>
+            <p class="text-xl md:text-2xl font-light">Comparing Term 1 vs. Term 3 (2025)</p>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4 md:p-8">
+        
+        <section id="kpi-dashboard" class="mb-16 animated-section" style="animation-delay: 0.2s;">
+            <div class="text-center mb-8 max-w-3xl mx-auto">
+                <h2 class="text-3xl font-bold text-primary mb-3">Key Performance Snapshot: The Radar</h2>
+                <p class="text-lg text-gray-500 dark:text-gray-300">The **Radar Chart** visually compares your performance across five core dimensions in T1 vs. T3. Notice the major success in **Feeling Safe & Heard (100%)** and **Clarity (89%)**, but a sharp contraction in **Interest (down to 56%)** now flags the most critical area for immediate attention.</p>
+            </div>
+            <div class="kpi-card p-4 md:p-8">
+                <div class="chart-container max-w-5xl mx-auto">
+                    <canvas id="kpiComparisonChart"></canvas>
+                </div>
+            </div>
+        </section>
+        
+        <section id="qualitative-composition" class="mb-16 animated-section" style="animation-delay: 0.4s;">
+            <div class="text-center mb-8 max-w-3xl mx-auto">
+                <h2 class="text-3xl font-bold text-secondary mb-3">Qualitative Feedback Composition</h2>
+                <p class="text-lg text-gray-500 dark:text-gray-300">This **Donut Chart** shows the breakdown of all open-ended comments. The proportion of **Improvement** comments has increased, reinforcing the need to address the drop in lesson interest and engagement.</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+                <div class="kpi-card p-6 md:p-8 col-span-1 chart-container">
+                    <canvas id="commentDonutChart"></canvas>
+                </div>
+                <div class="md:col-span-2 space-y-4">
+                    <div class="kpi-card p-6 border-l-4 border-secondary dark:border-light-accent">
+                        <!-- UPDATED DATA -->
+                        <p class="text-2xl font-bold text-secondary">67% Positive</p>
+                        <p class="text-gray-600 dark:text-gray-300">Comments focused on strengths: supportive environment, approachability, and successful practical activities.</p>
+                    </div>
+                    <div class="kpi-card p-6 border-l-4 border-[#9b6d00] dark:border-[#e9d8a6]">
+                         <!-- UPDATED DATA -->
+                        <p class="text-2xl font-bold text-[#9b6d00] dark:text-[#e9d8a6]">33% Improvement</p>
+                        <p class="text-gray-600 dark:text-gray-300">Comments focused on actionable areas: primarily lesson **engagement**, instructional pacing, and feedback clarity on grading.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="action-plan" class="animated-section" style="animation-delay: 0.6s;">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-primary mb-3">Actionable Next Steps</h2>
+                <p class="text-lg text-gray-500 dark:text-gray-300 max-w-3xl mx-auto">Translate data into deliberate practice using three targeted strategies for the next term, focusing heavily on engagement.</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="kpi-card p-6 text-center group animated-section" style="animation-delay: 0.8s;">
+                    <div class="mx-auto bg-primary text-white w-16 h-16 rounded-full flex items-center justify-center mb-4 transition duration-300 group-hover:scale-110">
+                        <span class="text-3xl font-bold">1</span>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2 text-primary dark:text-light-accent">Priority: Boost Engagement</h3>
+                    <p class="text-gray-600 dark:text-gray-300">Designate specific activities to make "boring tasks seem engaging" by integrating more variety, technology, or creative practical applications.</p>
+                </div>
+                <div class="kpi-card p-6 text-center group animated-section" style="animation-delay: 1.0s;">
+                     <div class="mx-auto bg-secondary text-white w-16 h-16 rounded-full flex items-center justify-center mb-4 transition duration-300 group-hover:scale-110">
+                        <span class="text-3xl font-bold">2</span>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2 text-primary dark:text-light-accent">Focus: Pacing Control</h3>
+                    <p class="text-gray-600 dark:text-gray-300">Continue to check for understanding, but ensure specific topics that students found challenging ("certain days, certain topics") are slowed down and reinforced.</p>
+                </div>
+                <div class="kpi-card p-6 text-center group animated-section" style="animation-delay: 1.2s;">
+                     <div class="mx-auto bg-light-accent text-primary w-16 h-16 rounded-full flex items-center justify-center mb-4 transition duration-300 group-hover:scale-110">
+                        <span class="text-3xl font-bold">3</span>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2 text-primary dark:text-light-accent">Focus: Feedback Clarity</h3>
+                    <p class="text-gray-600 dark:text-gray-300">Ensure feedback not only covers what was done, but explicitly details **"what you need to do"** next regarding grading and success criteria.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+    
+    <footer class="text-center py-8 mt-12 bg-gray-200 dark:bg-gray-700">
+        <p class="text-gray-600 dark:text-gray-300">Infographic generated for performance review and planning.</p>
+    </footer>
+
+    <script>
+        const THEMES = {
+            'brilliant-blues': { 
+                primary: '#005f73', 
+                secondary: '#0a9396', 
+                lightAccent: '#94d2bd', 
+                dangerAccent: '#e9d8a6', 
+                dangerDark: '#9b6d00'
+            },
+            'energetic-reds': { 
+                primary: '#ae2012', 
+                secondary: '#bb3e03', 
+                lightAccent: '#e9d8a6', 
+                dangerAccent: '#e09f3e', 
+                dangerDark: '#9b6d00'
+            },
+            'muted-greens': { 
+                primary: '#3a8a3a', 
+                secondary: '#588157', 
+                lightAccent: '#a3b18a', 
+                dangerAccent: '#dad7cd', 
+                dangerDark: '#7f8a65'
+            }
+        };
+
+        function getCssVar(name) {
+            return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        }
+
+        function setTheme(themeName) {
+            const theme = THEMES[themeName];
+            if (theme) {
+                const root = document.documentElement;
+                root.style.setProperty('--color-primary', theme.primary);
+                root.style.setProperty('--color-secondary', theme.secondary);
+                root.style.setProperty('--color-light-accent', theme.lightAccent);
+                root.style.setProperty('--color-danger-accent', theme.dangerAccent);
+                root.style.setProperty('--color-danger-dark', theme.dangerDark);
+                
+                // Re-render charts to pick up new colors
+                renderCharts();
+            }
+        }
+
+        function toggleLightDark() {
+            const body = document.body;
+            body.classList.toggle('dark-mode');
+            const isDarkMode = body.classList.contains('dark-mode');
+            document.getElementById('modeIcon').textContent = isDarkMode ? '☀️' : '🌙';
+
+            // Re-render charts to update axis/text colors
+            renderCharts();
+        }
+
+        function wrapLabel(str, maxWidth) {
+            if (str.length <= maxWidth) {
+                return str;
+            }
+            const words = str.split(' ');
+            let lines = [];
+            let currentLine = words[0];
+
+            for (let i = 1; i < words.length; i++) {
+                if ((currentLine + ' ' + words[i]).length > maxWidth) {
+                    lines.push(currentLine);
+                    currentLine = words[i];
+                } else {
+                    currentLine += ' ' + words[i];
+                }
+            }
+            lines.push(currentLine);
+            return lines;
+        }
+
+        function createRadarChart(ctx) {
+            const primaryColor = getCssVar('--color-primary');
+            const secondaryColor = getCssVar('--color-secondary');
+            const lightAccentColor = getCssVar('--color-light-accent');
+            const globalFontColor = document.body.classList.contains('dark-mode') ? '#e9ecef' : '#4A5568';
+            
+            const kpiData = {
+                labels: [
+                    wrapLabel('Lesson Clarity', 16),
+                    wrapLabel('Lesson Interest', 16),
+                    wrapLabel('Comfort Asking Help', 16),
+                    wrapLabel('Feedback Speed', 16),
+                    wrapLabel('Feeling Safe & Heard', 16)
+                ],
+                datasets: [
+                    {
+                        label: 'Term 1 Favorable Rate (%)',
+                        // Original data: [88.9, 88.9, 88.9, 66.7, 100.0] -> Rounded
+                        data: [89, 89, 89, 67, 100], 
+                        fill: true,
+                        backgroundColor: lightAccentColor + '40', // Accent with opacity
+                        borderColor: lightAccentColor,
+                        pointBackgroundColor: lightAccentColor,
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: lightAccentColor
+                    },
+                    {
+                        label: 'Term 3 Favorable Rate (%)',
+                        // NEW DATA: [88.9, 55.6, 88.9, 88.9, 100.0] -> Rounded
+                        data: [89, 56, 89, 89, 100], 
+                        fill: true,
+                        backgroundColor: secondaryColor + '40', // Secondary with opacity
+                        borderColor: secondaryColor, 
+                        pointBackgroundColor: secondaryColor,
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: secondaryColor
+                    }
+                ]
+            };
+
+            return new Chart(ctx, {
+                type: 'radar',
+                data: kpiData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    elements: { line: { borderWidth: 2 } },
+                    scales: {
+                        r: {
+                            angleLines: { display: true, color: globalFontColor + '40' },
+                            grid: { color: globalFontColor + '40' },
+                            pointLabels: { color: globalFontColor, font: { size: 14, weight: '600' } },
+                            suggestedMin: 50,
+                            suggestedMax: 100,
+                            ticks: { stepSize: 10, backdropColor: 'transparent', color: globalFontColor + '80' }
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'top', labels: { font: { size: 14 }, color: globalFontColor } },
+                        tooltip: {
+                            backgroundColor: getCssVar('--color-dark'),
+                            titleFont: { size: 16 },
+                            bodyFont: { size: 14 },
+                            callbacks: {
+                                title: function(tooltipItems) {
+                                    const item = tooltipItems[0];
+                                    let label = item.chart.data.labels[item.dataIndex];
+                                    if (Array.isArray(label)) { return label.join(' '); } else { return label; }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createDonutChart(ctx) {
+             const secondaryColor = getCssVar('--color-secondary');
+             const dangerAccentColor = getCssVar('--color-danger-accent');
+             const primaryColor = getCssVar('--color-primary');
+             const dangerDarkColor = getCssVar('--color-danger-dark');
+             
+             const donutData = {
+                labels: ['Positive/Working Well', 'Improvements/Suggestions'],
+                // NEW DATA: [66.7, 33.3] -> Rounded
+                datasets: [{
+                    data: [67, 33],
+                    backgroundColor: [
+                        secondaryColor, 
+                        dangerAccentColor 
+                    ],
+                    hoverBackgroundColor: [
+                        primaryColor,
+                        dangerDarkColor
+                    ],
+                    borderWidth: 2,
+                    borderColor: getCssVar('--color-card-bg') 
+                }]
+            };
+
+            const globalFontColor = document.body.classList.contains('dark-mode') ? '#e9ecef' : '#4A5568';
+
+            return new Chart(ctx, {
+                type: 'doughnut',
+                data: donutData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: { position: 'bottom', labels: { font: { size: 14 }, color: globalFontColor } },
+                        tooltip: {
+                            backgroundColor: getCssVar('--color-dark'),
+                            titleFont: { size: 16 },
+                            bodyFont: { size: 14 },
+                            callbacks: {
+                                title: function(tooltipItems) {
+                                    const item = tooltipItems[0];
+                                    let label = item.chart.data.labels[item.dataIndex];
+                                    if (Array.isArray(label)) { return label.join(' '); } else { return label; }
+                                },
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) { label += ': '; }
+                                    if (context.parsed !== null) { label += context.parsed + '%'; }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+
+        let kpiChartInstance = null;
+        let donutChartInstance = null;
+
+        function renderCharts() {
+            if (kpiChartInstance) kpiChartInstance.destroy();
+            if (donutChartInstance) donutChartInstance.destroy();
+
+            const kpiCtx = document.getElementById('kpiComparisonChart').getContext('2d');
+            kpiChartInstance = createRadarChart(kpiCtx);
+
+            const donutCtx = document.getElementById('commentDonutChart').getContext('2d');
+            donutChartInstance = createDonutChart(donutCtx);
+        }
+        
+        window.onload = function() {
+            renderCharts();
+            // Set initial icons for the toggle
+            document.getElementById('modeIcon').textContent = document.body.classList.contains('dark-mode') ? '☀️' : '🌙';
+            document.getElementById('themeSelector').value = 'brilliant-blues';
+        };
+
+        // Note: NO SVG nor Mermaid JS was used in this document.
+    </script>
+
+</body>
+</html>
