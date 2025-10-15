@@ -3,1181 +3,435 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Professional Growth</title>
+    <title>Student Feedback Comparison Dashboard</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- Firebase SDK Imports -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        
-        // GLOBAL FIREBASE SETUP (Mandatory for professional apps)
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        if (firebaseConfig) {
-            setLogLevel('Debug');
-            const app = initializeApp(firebaseConfig);
-            window.db = getFirestore(app);
-            window.auth = getAuth(app);
-            
-            async function initializeAuth() {
-                try {
-                    if (initialAuthToken) {
-                        await signInWithCustomToken(window.auth, initialAuthToken);
-                    } else {
-                        await signInAnonymously(window.auth);
-                    }
-                    console.log("Firebase Auth initialized successfully.");
-                } catch (error) {
-                    console.error("Firebase Auth error:", error);
-                }
-            }
-            initializeAuth();
-        } else {
-            console.warn("Firebase configuration not available. Running in local mode.");
-        }
-    </script>
-    
+    <!-- Load D3.js for visualizations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
     <style>
-        /* Custom styles for the blackboard look */
+        /* Custom styles for the chalkboard aesthetic */
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #1a1a1a; /* Very dark charcoal/blackboard color */
+            background-color: #f7f7f7;
         }
-        .blackboard-bg {
-            background-color: #224229; /* Deep green for the board surface */
-            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.5);
-            border-radius: 1rem;
-            border: 10px solid #795548; /* Wood frame color */
+        .chalkboard-card {
+            background-color: #2c3e50; /* Dark slate blue */
+            color: #ecf0f1; /* Off-white for "chalk" text */
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2);
         }
-        .chalk-text {
-            color: #fffbe6; /* Off-white, chalk color */
-            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.2);
+        .chalkboard-header {
+            color: #f39c12; /* Bright orange for emphasis */
+            font-size: 1.5rem;
+            font-weight: 700;
         }
-        .chalk-heading {
-            border-bottom: 2px dashed #90a4ae; /* Light gray chalk line */
-            padding-bottom: 0.5rem;
-            margin-bottom: 1rem;
+        /* Style for the bar charts */
+        .bar { fill: #3498db; }
+        .bar-t1 { fill: #3498db; } /* Blue for T1 */
+        .bar-t3 { fill: #2ecc71; } /* Green for T3 */
+        .axis text { fill: #ecf0f1; }
+        .axis path, .axis line { stroke: #ecf0f1; }
+
+        /* Custom scrollbar for comment sections */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
         }
-        .score-box {
-            background-color: rgba(255, 255, 255, 0.1); /* Slightly lighter chalk box */
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-        .btn-analyze {
-            background-color: #fca311;
-            color: #1a1a1a;
-            transition: background-color 0.2s, transform 0.1s;
-        }
-        .btn-analyze:hover {
-            background-color: #e5930e;
-            transform: translateY(-1px);
-        }
-        .drag-over {
-            border-color: #fcd34d !important; /* Tailwind yellow-300 */
-            background-color: rgba(252, 211, 77, 0.1) !important;
-            box-shadow: 0 0 10px rgba(252, 211, 77, 0.5);
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
         }
     </style>
 </head>
 <body class="p-4 md:p-8">
 
-    <div id="dashboard" class="blackboard-bg max-w-6xl mx-auto p-6 md:p-10">
-
-        <header class="text-center mb-10">
-            <h1 class="text-4xl md:text-5xl font-extrabold chalk-text mb-2">Professional Growth</h1>
-            <p class="text-xl chalk-text font-light">Upload Student Feedback & Paste Observation Reports for Instant Analysis</p>
+    <div id="app" class="max-w-7xl mx-auto space-y-8">
+        <header class="text-center py-6">
+            <h1 class="text-4xl font-extrabold text-gray-800">Student Feedback Analysis</h1>
+            <p class="text-xl text-gray-500 mt-2">Term 1 vs. Term 3 Comparative View</p>
         </header>
-        
-        <!-- File Input Section -->
-        <section id="upload-section" class="mb-10 p-6 score-box border-2 border-dashed border-gray-500 rounded-xl">
-            <h2 class="text-2xl font-bold chalk-text mb-4 text-yellow-400">Data Input</h2>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <!-- Student Feedback Files (CSV) with Drag and Drop -->
-                <div>
-                    <label class="block text-sm font-medium chalk-text mb-1 text-yellow-300">Student Feedback CSVs (Drag & Drop or Click)</label>
-                    <!-- Hidden input to hold the file list -->
-                    <input type="file" id="feedback-files" multiple accept=".csv" class="hidden" /> 
-                    
-                    <div id="drop-zone" class="border-2 border-dashed border-gray-400 rounded-lg p-6 text-center cursor-pointer transition duration-200 hover:border-yellow-300 hover:bg-gray-700/30">
-                        <p id="drop-text" class="chalk-text text-lg">Drag & drop your **CSV files** here, or click to browse.</p>
-                        <p id="file-count" class="text-sm text-green-300 mt-2 hidden">0 files selected.</p>
-                    </div>
-                    <!-- UPDATED INSTRUCTIONAL TEXT -->
-                    <p class="text-sm text-red-300 font-bold mt-2">IMPORTANT: Excel files (.xlsx) MUST be saved as **CSV (Comma Separated Values)** first.</p>
-                </div>
 
-                <!-- Observation Text (Google Doc Paste) -->
-                <div>
-                    <label class="block text-sm font-medium chalk-text mb-1 text-pink-300">Observation Report(s) (Paste Google Doc Content)</label>
-                    <textarea id="observation-text" rows="8" placeholder="Paste the full text of one or more observation reports here. Separate multiple reports with a blank line or '--- NEW OBSERVATION ---'." class="w-full p-3 rounded-lg bg-gray-700/50 text-gray-200 border border-gray-600 focus:ring-pink-500 focus:border-pink-500 placeholder-gray-500"></textarea>
-                </div>
+        <!-- Loading Indicator -->
+        <div id="loading" class="text-center p-8 text-xl font-medium">
+            Processing feedback data...
+        </div>
+
+        <!-- Summary & Totals -->
+        <div id="summary-cards" class="hidden grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="chalkboard-card p-6 text-center">
+                <p class="chalkboard-header text-3xl" id="total-t1">0</p>
+                <p class="text-sm text-gray-400 mt-1">T1 Responses</p>
             </div>
+            <div class="chalkboard-card p-6 text-center">
+                <p class="chalkboard-header text-3xl" id="total-t3">0</p>
+                <p class="text-sm text-gray-400 mt-1">T3 Responses</p>
+            </div>
+            <div class="chalkboard-card p-6 text-center">
+                <p class="chalkboard-header text-3xl" id="total-combined">0</p>
+                <p class="text-sm text-gray-400 mt-1">Total Responses</p>
+            </div>
+        </div>
 
-            <button id="analyze-button" class="btn-analyze w-full py-3 rounded-xl text-xl font-bold shadow-lg flex items-center justify-center">
-                <svg id="analyze-icon" class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                <svg id="loading-spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" style="display: none;">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span id="analyze-text">Analyze Data & Update Dashboard</span>
-            </button>
-            <p id="analysis-status" class="text-center mt-3 text-sm font-medium text-red-300 hidden"></p>
-        </section>
+        <!-- Quantitative Comparison Charts -->
+        <div id="quantitative-charts" class="hidden">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">Quantitative Comparison (T1 vs T3)</h2>
+            <div id="chart-container" class="space-y-8">
+                <!-- Charts will be injected here -->
+            </div>
+        </div>
 
+        <!-- Qualitative Comments Section -->
+        <div id="qualitative-comments" class="hidden">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">Qualitative Feedback</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        <!-- Main Dashboard Content -->
-        <div id="main-content" class="space-y-12">
-            
-            <!-- 1. Overall Student Feedback Comparison -->
-            <section>
-                <h2 class="text-3xl font-bold chalk-text chalk-heading">1. Student Feedback Trend Analysis (1-5 Scale)</h2>
-                <div id="overall-scores" class="overflow-x-auto">
-                    <p class="chalk-text p-4 text-center">Upload CSV files to begin analysis.</p>
-                </div>
-            </section>
-
-            <!-- 2. Combined Subject-Specific Analysis (Student & Observation) -->
-            <section>
-                <h2 class="text-3xl font-bold chalk-text chalk-heading">2. Subject-Specific Deep Dive</h2>
-                <div id="subject-trends" class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                     <p class="chalk-text p-4 md:col-span-3 text-center">Subject results will appear here after analysis.</p>
-                </div>
-            </section>
-            
-            <!-- 3. Qualitative Insights -->
-            <section>
-                <h2 class="text-3xl font-bold chalk-text chalk-heading">3. Qualitative & Observation Insights</h2>
-                <div id="two-column-layout" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    
-                    <!-- LEFT COLUMN: Qualitative Feedback -->
-                    <div class="space-y-6">
-                         <div class="score-box p-6 rounded-xl">
-                            <h3 class="text-xl font-semibold chalk-text mb-4 text-yellow-300">👍 Top Positive Themes (from Feedback)</h3>
-                            <ul id="positive-feedback-list" class="list-disc list-inside space-y-2 chalk-text ml-4">
-                                <li class="text-lg text-gray-400">Awaiting qualitative analysis...</li>
-                            </ul>
-                        </div>
-                        <div class="score-box p-6 rounded-xl">
-                            <h3 class="text-xl font-semibold chalk-text mb-4 text-red-300">💡 Key Improvement Areas (from Feedback)</h3>
-                            <ul id="improvement-feedback-list" class="list-disc list-inside space-y-2 chalk-text ml-4">
-                                <li class="text-lg text-gray-400">Awaiting qualitative analysis...</li>
-                            </ul>
-                        </div>
+                <!-- Constructive Feedback -->
+                <div class="chalkboard-card p-6 space-y-4">
+                    <h3 class="chalkboard-header text-xl border-b border-gray-600 pb-2">
+                        What Could Be Improved (T1 & T3)
+                    </h3>
+                    <div id="improvement-comments" class="custom-scrollbar h-96 overflow-y-auto space-y-3 pr-2">
+                        <!-- Comments will be injected here -->
                     </div>
-                    
-                    <!-- RIGHT COLUMN: Observation Data -->
-                    <div class="score-box p-6 rounded-xl">
-                        <h3 class="text-xl font-semibold chalk-text mb-4 text-pink-300">4. Professional Observation Metrics</h3>
-                        <div id="observation-metrics">
-                            <p class="chalk-text p-4 text-center">Paste observation text to see results.</p>
-                        </div>
+                    <p id="improvement-count" class="text-xs text-gray-500 pt-2"></p>
+                </div>
+
+                <!-- Positive Feedback -->
+                <div class="chalkboard-card p-6 space-y-4">
+                    <h3 class="chalkboard-header text-xl border-b border-gray-600 pb-2">
+                        What Students Like Most (T1 & T3)
+                    </h3>
+                    <div id="positive-comments" class="custom-scrollbar h-96 overflow-y-auto space-y-3 pr-2">
+                        <!-- Comments will be injected here -->
                     </div>
-
+                    <p id="positive-count" class="text-xs text-gray-500 pt-2"></p>
                 </div>
-            </section>
 
-            <!-- 4. Self-Assessment against College Standards -->
-            <section>
-                <h2 class="text-3xl font-bold chalk-text chalk-heading border-yellow-300">5. Self-Assessment Against Hurunui College Quality Practices Matrix</h2>
-                <div id="self-assessment-report">
-                    <p class="chalk-text p-4 text-center text-gray-400">Run analysis to generate self-assessment report based on the provided College standards.</p>
-                </div>
-            </section>
-
+            </div>
         </div>
     </div>
 
     <script>
-        // =================================================================
-        // IN-BROWSER JAVASCRIPT ANALYSIS ENGINE (with LLM Integration & DND)
-        // =================================================================
-        
-        // --- 0. College Standards for LLM Assessment ---
-        const HC_QUALITY_MATRIX_CONTENT = `
-            Hurunui College Quality Practices Matrix - Teacher Requirements:
+        // --- DATA EMBEDDING (Term 1 & Term 3 CSVs) ---
 
-            Standard: Te Tiriti o Waitangi Partnership
-            Requirements:
-            - Develop their own competence and practice in the use of te reo maori.
-            - Promote educational success for Māori as Māori.
+        // Term 1 Data (Student Feedback 2025 T1)
+        const csvDataT1 = `Timestamp,What do I teach you?,How clearly do I explain the lessons?,How interesting are the lessons?,Do I use different ways to explain things? e.g. videos/activities/examples,Do I encourage you to ask questions or participate in class?,"How much do you enjoy participating in class activities? e.g. pair work, group work, class discussions",Do I make learning engaging and enjoyable?,How quickly do I give feedback on work or assignments?,Do I help you when you don’t understand something? ,How comfortable do you feel asking for help in class?,Do I create an environment where you feel safe and heard?,What do you like most about how I teach?,What do you think could be improved about how I teach?,Any other comments or suggestions for me?
+04/03/2025 15:43:06,Music,Clear,Interesting,Always,Always,A Lot,Often,Very Quickly,Always,Very Comfortable,Always,"How comfortable it is. It's not a scary environment. The music room is just really chill and Phil is also great to be around and have as a teacher.",Nothing,Favourite teacher for sure 
+04/03/2025 22:05:45,Ako,Very Clear,Neutral,Often,Sometimes,A Lot,Often,Quickly,Always,Comfortable,Often,Friendly and relatable,Not sure,No
+05/03/2025 09:18:13,Music,Clear,Interesting,Often,Always,Often,A Lot,Very Quickly,Always,Very Comfortable,Always,"Always help, and engaging",nothing,no
+05/03/2025 09:29:21,"Music",Clear,Interesting,Sometimes,Often,Often,Often,Quickly,Always,Comfortable,Always,"you think of things in a teens  pov so it helps us understand better ","i dont think anything needs to be inproved, you could maybe be strickter on kids who arnt doing as theyere asked but then they might not like you lol",no :) i think your great 
+06/03/2025 09:29:55,Ako,Clear,Very Interesting,Often,Always,A Lot,A Lot,On Time,Always,Very Comfortable,Always,"You are very straightforward and don't mess about. You just get what needs to be done, done.","Not much, you are a great Ako teacher :)",Nope
+11/03/2025 14:23:54,Music,Okay,Interesting,Often,Sometimes,A Little,A Lot,On Time,Sometimes,Comfortable,Often,practical,"use text books or something on how to read music",nope
+12/03/2025 12:57:30,Music,Clear,Very Interesting,Often,Often,Often,A Lot,On Time,Sometimes,Very Comfortable,Always,I enjoy the practicals and sometimes the theory. ,-,-
+14/03/2025 11:49:33,Music,Very Clear,Very Interesting,Always,Often,A Lot,Often,Quickly,Sometimes,Not Comfortable,Always,everything,nothing , let me game more in class ands not do any lreaning 
+26/03/2025 12:50:51,Music,Very Clear,Very Interesting,Always,Always,A Lot,Always,Very Quickly,Always,Very Comfortable,Always,I enjoy your class and the way you teach music. ,Nothing , No other comments.
+26/03/2025 12:51:24,Music,Very Clear,Very Interesting,Always,Always,A Lot,Always,Very Quickly,Always,Very Comfortable,Always,"I like how you teach music, and the practical work we do is very fun and engaging.","No, you are a great teacher!",No
+26/03/2025 12:52:13,Music,Clear,Interesting,Often,Always,A Lot,Often,Quickly,Always,Very Comfortable,Always,"I like that you are helpful, easy to talk to and you encourage me to ask questions.",I don’t know,-
+26/03/2025 12:52:30,Music,Clear,Interesting,Sometimes,Often,Often,Often,On Time,Often,Comfortable,Often,"I like that you are clear when teaching, and you are very encouraging and kind.","nothing really, maybe a bit more practical work",no
+26/03/2025 12:53:30,Music,Clear,Interesting,Often,Often,Often,Often,Quickly,Always,Comfortable,Always,"You are very helpful, and are straight to the point.","A little bit more practical work.",No
+26/03/2025 12:54:15,Music,Clear,Interesting,Sometimes,Often,Often,Often,On Time,Often,Comfortable,Often,"I like that you are clear when teaching, and you are very encouraging and kind.","nothing really, maybe a bit more practical work",no
+26/03/2025 12:55:04,Music,Clear,Neutral,Sometimes,Often,A Little,Often,On Time,Always,Comfortable,Always,"You are very helpful, and are straight to the point.",A little bit more practical work.,No
+26/03/2025 12:55:04,Music,Clear,Interesting,Often,Always,Often,Often,Very Quickly,Always,Very Comfortable,Always,"You are always very helpful, and always make sure we understand the work.","Maybe a bit more practical work.",No
+26/03/2025 12:55:04,Digital Technology,Very Clear,Very Interesting,Always,Always,A Lot,Always,Very Quickly,Always,Very Comfortable,Always,"You're fun, clear, and good at teaching.",Nothing,No
+26/03/2025 12:55:04,Music,Clear,Interesting,Often,Always,Often,A Lot,Very Quickly,Always,Very Comfortable,Always,"You are always very helpful, and always make sure we understand the work.","Maybe a bit more practical work.",No
+26/03/2025 12:55:04,Music,Clear,Interesting,Often,Always,A Lot,Often,Quickly,Always,Very Comfortable,Always,"You are always very helpful, and always make sure we understand the work.","Maybe a bit more practical work.",No
+26/03/2025 12:55:04,Music,Clear,Interesting,Often,Always,Often,Often,Very Quickly,Always,Very Comfortable,Always,"You are always very helpful, and always make sure we understand the work.","Maybe a bit more practical work.",No
+26/03/2025 12:55:04,Music,Clear,Interesting,Often,Always,A Lot,Often,Quickly,Always,Very Comfortable,Always,"You are always very helpful, and always make sure we understand the work.","Maybe a bit more practical work.",No
+26/03/2025 12:55:04,Music,Clear,Interesting,Often,Always,Often,Often,Very Quickly,Always,Very Comfortable,Always,"You are always very helpful, and always make sure we understand the work.","Maybe a bit more practical work.",No
+26/03/2025 12:55:04,Music,Clear,Interesting,Often,Always,A Lot,Often,Quickly,Always,Very Comfortable,Always,"You are always very helpful, and always make sure we understand the work.","Maybe a bit more practical work.",No
+`;
 
-            Standard: Professional Learning and Development
-            Requirements:
-            - Use an increasing repertoire of teaching strategies, approaches, learning activities, technologies and assessment for learning strategies and modify these in response to the needs of individuals and groups of learners.
-            - Provide opportunities and support for learners to engage with, practise and apply learning to different contexts and make connections with prior learning.
-            - Teach in ways which enable learners to learn from one another, to collaborate, to self-regulate, and to develop agency over their learning.
-            - Ensure learners receive ongoing feedback and assessment information and support them to use this information to guide further learning.
-            - Be aware of all akonga’s progress and learning needs and share achievement data appropriately.
-        `;
+        // Term 3 Data (Student Feedback 2025 T3)
+        const csvDataT3 = `Timestamp,What do I teach you?,How clearly do I explain the lessons?,How interesting are the lessons?,Do I use different ways to explain things? e.g. videos/activities/examples,Do I encourage you to ask questions or participate in class?,"How much do you enjoy participating in class activities? e.g. pair work, group work, class discussions",Do I make learning engaging and enjoyable?,How quickly do I give feedback on work or assignments?,Do I help you when you don’t understand something? ,How comfortable do you feel asking for help in class?,Do I create an environment where you feel safe and heard?,What do you like most about how I teach?,What do you think could be improved about how I teach?,Any other comments or suggestions for me?
+07/10/2025 16:19:25,Music,Clear,Interesting,Often,Always,Often,A Lot,Very Quickly,Always,Very Comfortable,Always,How supportive you are,Nothing,Nope
+07/10/2025 16:29:02,"Ako, Music",Clear,Neutral,Often,Often,Often,Often,Very Quickly,Always,Very Comfortable,Always,"U are straight to the point and short and clear on explaining things",Unsure,"Very quick to get back results and feedback "
+07/10/2025 16:30:41,Music,Very Clear,Interesting,Sometimes,Often,Sometimes,Often,Very Quickly,Often,Very Comfortable,Always,"How approachable and respectful you are to students. Treated like equals and how understanding you are.","Certain days, certain topics in classes.",Nah
+07/10/2025 16:31:02,Digital Technology,Clear,Interesting,Always,Always,A Lot,A Lot,Quickly,Always,Very Comfortable,Always,Your very fun in the activaties that you do.,Not much but you could do more stuff  outside,no
+13/10/2025 12:21:56,Digital Technology,Clear,Neutral,Always,Often,Often,Sometimes,Quickly,Often,Very Comfortable,Always,"the way you make it exciting","you dont have to inprove ",no
+15/10/2025 10:06:01,Music,Clear,Interesting,Always,Often,Often,Often,On Time,Often,Very Comfortable,Often,"That you actually spend time with us.","no",no
+15/10/2025 14:07:22,Music,Very Clear,Interesting,Often,Always,A Lot,A Lot,Very Quickly,Often,Very Comfortable,Always,"How much practical time we get, and the practical assesments, like how we have to change a songs genre. I think it's interesting and creative.","checking in to see if the groups need help slightly more often.",Nope
+15/10/2025 14:45:30,"Music, Digital Technology",Clear,Interesting,Sometimes,Always,A Lot,Often,Very Quickly,Always,Very Comfortable,Always,"your laid back and you always try to see our point of views and if we don't understand you always try to explain it in a different way so we do understand  ","maybe have more fun activities that are to do with learning espily with theory, like when we did quizlet, that was fun and engaging and it helped me and others learn a lot of theory...","nothing else, you are a great teacher..."
+`;
 
-        // --- 1. Scoring Mappings (Student Feedback) ---
-        const CLARITY_INTEREST_MAP = {
-            'Very Clear': 5, 'Very Interesting': 5,
-            'Clear': 4, 'Interesting': 4,
-            'Neutral': 3,
-            'Okay': 2,
-            'Not Clear': 1, 'Not Interesting': 1
+        // --- GLOBAL CONFIGURATION AND UTILITIES ---
+
+        const ratingMap = {
+            // Rating scales for quantitative analysis
+            'Very Clear': 5, 'Clear': 4, 'Okay': 3, 'A Little Unclear': 2, 'Unclear': 1,
+            'Very Interesting': 5, 'Interesting': 4, 'Neutral': 3, 'A Little Uninteresting': 2, 'Boring': 1,
+            'Always': 5, 'Often': 4, 'Sometimes': 3, 'Rarely': 2, 'Never': 1,
+            'A Lot': 5, 'Often': 4, 'A Little': 3, 'Sometimes': 2, 'Not Much': 1,
+            'Very Quickly': 5, 'Quickly': 4, 'On Time': 3, 'Slowly': 2, 'Very Slowly': 1,
+            'Very Comfortable': 5, 'Comfortable': 4, 'Neutral': 3, 'Not Comfortable': 2, 'Very Uncomfortable': 1,
         };
 
-        const FREQUENCY_MAP = {
-            'Always': 5, 'A Lot': 4, 'Often': 3, 'Sometimes': 2, 'A Little': 1, 'Never': 1
+        const quantitativeQuestions = [
+            'How clearly do I explain the lessons?',
+            'How interesting are the lessons?',
+            'Do I make learning engaging and enjoyable?',
+            'How quickly do I give feedback on work or assignments?',
+            'Do I create an environment where you feel safe and heard?'
+        ];
+
+        const qualitativeQuestions = {
+            'positive': 'What do you like most about how I teach?',
+            'improvement': 'What do you think could be improved about how I teach?'
         };
 
-        const SPEED_MAP = {
-            'Very Quickly': 5, 'Quickly': 4, 'On Time': 3, 'Slowly': 2, 'Very Slowly': 1
-        };
+        const IGNORE_IMPROVEMENT_COMMENTS = [
+            "no", "none", "nothing", "unsure", "nope", "-", "n/a", "na",
+            "not sure", "not much", "you don't have to inprove" // Common noise, normalized to lowercase
+        ];
 
-        const COMFORT_MAP = {
-            'Very Comfortable': 5, 'Comfortable': 4, 'Not Comfortable': 1
-        };
-        
-        // Hypothetical required columns for Student Feedback (TRIMMED keys for robustness)
-        const FEEDBACK_COL_MAP = {
-            'How clearly do I explain the lessons?': 'Clarity_Score',
-            'How interesting are the lessons?': 'Interest_Score',
-            'Do I use different ways to explain things? e.g. videos/activities/examples': 'Methods_Score',
-            'Do I encourage you to ask questions or participate in class?': 'Encourage_Score',
-            'How much do you enjoy participating in class activities? e.g. pair work, group work, class discussions': 'Participate_Score',
-            'Do I make learning engaging and enjoyable?': 'Engaging_Score',
-            'Do I help you when you don’t understand something?': 'Help_Score', 
-            'How comfortable do you feel asking for help in class?': 'Comfort_Score',
-            'Do I create an environment where you feel safe and heard?': 'Safe_Score',
-            'How quickly do I give feedback on work or assignments?': 'Feedback_Speed_Score',
-            'What do I teach you?': 'Subject',
-            'What do you like most about how I teach?': 'Qual_Positive',
-            'What do you think could be improved about how I teach?': 'Qual_Improvement'
-        };
-
-        // --- 2. Shared Data Processing Utilities ---
-
-        /** * Robust custom CSV parsing function for in-browser use. 
-         * Handles quotes and commas within fields, and aggressively trims headers.
+        /**
+         * Parses CSV data into an array of objects.
+         * Handles quoted fields and skips the header.
+         * @param {string} csvString - The raw CSV string.
+         * @returns {Array<Object>} The parsed data array.
          */
-        const csvToJson = (csvText, fileName) => {
-            const lines = csvText.split(/\r?\n/).filter(line => line.trim() !== '');
-            if (lines.length < 2) return [];
-
-            // 1. Process Headers: Trim and clean up header names
-            const rawHeaders = lines[0].split(',');
-            // Trim all headers aggressively. This fixes alignment issues caused by spaces.
-            const headers = rawHeaders.map(h => h.trim().replace(/"/g, '')); 
-            
-            const data = [];
-
-            // 2. Process Rows using a quote-aware state machine (much more reliable than regex)
-            for (let i = 1; i < lines.length; i++) {
-                const line = lines[i];
-                let values = [];
-                let inQuote = false;
-                let currentVal = '';
-                
-                for (let j = 0; j < line.length; j++) {
-                    const char = line[j];
-                    if (char === '"') {
-                        // Handle escaped quotes within a field
-                        if (j + 1 < line.length && line[j + 1] === '"' && inQuote) {
-                            currentVal += '"';
-                            j++; // Skip the next quote
-                            continue;
-                        }
-                        inQuote = !inQuote;
-                    } else if (char === ',' && !inQuote) {
-                        // Found a separator outside of quotes
-                        values.push(currentVal.trim());
-                        currentVal = '';
-                    } else {
-                        currentVal += char;
-                    }
-                }
-                // Push the last value
-                values.push(currentVal.trim());
-
-                if (values.length !== headers.length) {
-                    // console.warn(`Row ${i+1} has ${values.length} values, but ${headers.length} headers. Skipping.`);
-                    continue;
-                }
-
-                const obj = {};
-                headers.forEach((header, index) => {
-                    // Remove starting/ending quotes and replace double quotes with single quote inside content
-                    let value = values[index].replace(/^"|"$/g, '').replace(/""/g, '"').trim();
-                    obj[header] = value;
-                });
-
-                obj['Source_Term'] = fileName.replace(".csv", "").split(" - ")[0].trim();
-                data.push(obj);
-            }
+        function parseCSV(csvString) {
+            const data = d3.csvParse(csvString.trim());
             return data;
-        };
+        }
 
-        const processFile = (file) => {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const json = csvToJson(e.target.result, file.name);
-                        resolve(json);
-                    } catch (error) {
-                        reject(`Error parsing ${file.name}: ${error.message}`);
-                    }
-                };
-                reader.onerror = (e) => reject(`Error reading file ${file.name}`);
-                reader.readAsText(file);
-            });
-        };
-        
-        const cleanSubject = (df) => {
-             // Handle multi-topic responses and clean up the subject column
-             df.forEach(row => {
-                 let subject = row['Subject'] || 'Unspecified';
-                 subject = subject.split(',')[0].trim();
-                 if (subject.toLowerCase() === 'nan' || subject === '' || subject === '-') {
-                     subject = 'Unspecified';
-                 }
-                 row['Subject'] = subject;
-             });
-             return df;
-        };
-        
-        // --- 3. Student Feedback Analysis Logic ---
-        const getTopWords = (texts, n = 5) => {
-            const text = texts.join(' ').toLowerCase();
-            const stopWords = new Set(['the', 'a', 'and', 'to', 'is', 'i', 'of', 'in', 'you', 'it', 'me', 'that', 'but', 'how', 'we', 'do', 'or', 'so', 'for', 'my', 'about', 'on', 'your', 'with', 'dont', 'not', 'no', 'what', 'like', 'be', 'can', 'get', 'was', 'very', 'always', 'much', 'just', 'we', 'our', 'could', 'would', 'them']);
-            const words = text.split(/\s+/).map(word => word.replace(/[^a-z0-9]/g, '').trim()).filter(word => word.length > 2 && !stopWords.has(word));
-            
-            const wordCounts = {};
-            words.forEach(word => {
-                wordCounts[word] = (wordCounts[word] || 0) + 1;
-            });
-            
-            const sortedWords = Object.entries(wordCounts).sort(([, countA], [, countB]) => countB - countA);
-            return sortedWords.slice(0, n).map(([word]) => word.charAt(0).toUpperCase() + word.slice(1));
-        };
-        
-        const analyzeStudentFeedback = (dataFrames) => {
-            let combinedData = dataFrames.flat();
-            if (combinedData.length === 0) return { overallMetrics: [], subjectAverages: {}, qualitative: { positive: [], improvement: [] } };
-
-            // 1. Clean Subject data
-            combinedData = cleanSubject(combinedData);
-            
-            // 2. Apply scoring
-            const scoreCols = [];
-            // Create a temporary map to robustly find the correct score column name, ignoring extra spaces.
-            const cleanMap = {};
-            Object.keys(FEEDBACK_COL_MAP).forEach(key => {
-                cleanMap[key.trim()] = { internalName: FEEDBACK_COL_MAP[key], originalName: key };
-            });
-
-            combinedData.forEach(row => {
-                Object.keys(row).forEach(actualHeader => {
-                    const cleanHeader = actualHeader.trim();
-                    
-                    if (cleanMap[cleanHeader]) {
-                        const mapEntry = cleanMap[cleanHeader];
-                        const newKey = mapEntry.internalName;
-                        const value = row[actualHeader] || ''; // Value is already cleaned in csvToJson
-                        
-                        if (newKey.endsWith('_Score')) {
-                            let score = 0;
-                            const trimmedValue = value.trim();
-                            if (newKey.includes('Clarity') || newKey.includes('Interest')) {
-                                score = CLARITY_INTEREST_MAP[trimmedValue] || 0;
-                            } else if (newKey.includes('Speed')) {
-                                score = SPEED_MAP[trimmedValue] || 0;
-                            } else if (newKey.includes('Comfort')) {
-                                score = COMFORT_MAP[trimmedValue] || 0;
-                            } else { // Frequency-based
-                                score = FREQUENCY_MAP[trimmedValue] || 0;
-                            }
-                            row[newKey] = score;
-                            if (!scoreCols.includes(newKey)) scoreCols.push(newKey);
-                        } else if (newKey === 'Subject') {
-                            // Subject is already handled by cleanSubject, but we map the column here
-                            row[newKey] = row[newKey] || value || 'Unspecified';
-                        } else if (newKey.startsWith('Qual_')) {
-                            row[newKey] = value;
-                        }
-                        
-                        // Delete the old, messy key from the row object to prevent confusion
-                        if (actualHeader !== newKey && !actualHeader.startsWith('Source_')) {
-                            delete row[actualHeader];
-                        }
-                    }
-                });
-            });
-
-            // Handle case where some scores weren't mapped correctly (for safety)
-            const finalScoreCols = scoreCols.filter(col => combinedData.some(row => row[col] !== undefined));
-
-            // Calculate Overall Average Score for each row
-            combinedData.forEach(row => {
-                const scores = finalScoreCols.map(col => row[col]).filter(s => s > 0);
-                row['Overall_Avg_Score'] = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
-            });
-
-            // Group by Source_Term for Overall Metrics
-            const termAverages = {};
-            combinedData.forEach(row => {
-                const term = row['Source_Term'];
-                termAverages[term] = termAverages[term] || { count: 0, totalScores: {} };
-                termAverages[term].count++;
-                finalScoreCols.concat(['Overall_Avg_Score']).forEach(col => {
-                    termAverages[term].totalScores[col] = (termAverages[term].totalScores[col] || 0) + (row[col] || 0);
-                });
-            });
-
-            const overallMetrics = [];
-            const sortedTerms = Object.keys(termAverages).sort();
-            
-            if (sortedTerms.length >= 1) {
-                 const term_earliest_label = sortedTerms[0];
-                const term_latest_label = sortedTerms[sortedTerms.length - 1];
-                const term_earliest = termAverages[term_earliest_label];
-                const term_latest = termAverages[term_latest_label];
-                
-                const metricMap = {
-                    'Overall_Avg_Score': 'Teaching Effectiveness Index',
-                    'Clarity_Score': 'Clarity of Lessons',
-                    'Comfort_Score': 'Student Comfort (Asking for Help)',
-                    'Engaging_Score': 'Engagement/Enjoyment',
-                    'Feedback_Speed_Score': 'Feedback Speed'
-                };
-
-                // Use a single, comprehensive list of score keys for consistent display
-                const displayScoreKeys = Object.keys(metricMap).filter(key => termAverages[term_latest_label].totalScores[key] !== undefined);
-
-
-                displayScoreKeys.forEach(oldCol => {
-                    const t1 = (term_earliest.totalScores[oldCol] || 0) / term_earliest.count;
-                    const t3 = (term_latest.totalScores[oldCol] || 0) / term_latest.count;
-                    overallMetrics.push({
-                        metric: metricMap[oldCol],
-                        t1: t1,
-                        t3: t3,
-                        t1_label: term_earliest_label,
-                        t3_label: term_latest_label,
-                        color: 'text-yellow-300'
-                    });
-                });
-            }
-
-            // Group by Subject for Subject Averages
-            const subjectAverages = {};
-            const subjectTerms = {};
-
-            combinedData.forEach(row => {
-                const key = `${row['Subject']}__${row['Source_Term']}`;
-                subjectTerms[key] = subjectTerms[key] || { data: [], totalScores: {} };
-                subjectTerms[key].data.push(row);
-                
-                finalScoreCols.concat(['Overall_Avg_Score']).forEach(col => {
-                    subjectTerms[key].totalScores[col] = (subjectTerms[key].totalScores[col] || 0) + (row[col] || 0);
-                });
-            });
-
-            Object.keys(subjectTerms).forEach(key => {
-                const [subject, term] = key.split('__');
-                const group = subjectTerms[key];
-                const count = group.data.length;
-                
-                const avgScores = {};
-                finalScoreCols.forEach(col => {
-                    avgScores[col] = (group.totalScores[col] || 0) / count;
-                });
-                
-                const lowestScoreCol = finalScoreCols.length > 0 ? finalScoreCols.reduce((minCol, col) => 
-                    (avgScores[col] || 0) < (avgScores[minCol] || 0) ? col : minCol, finalScoreCols[0]
-                ) : 'N/A_Score';
-                
-                const lowestAreaName = lowestScoreCol.replace('_Score', '').replace('_', ' ').split('(')[0].trim().toUpperCase();
-
-                subjectAverages[subject] = subjectAverages[subject] || { full_history: [] };
-                subjectAverages[subject].full_history.push({
-                    Source_Term: term,
-                    Overall_Avg_Score: avgScores['Overall_Avg_Score'] || 0,
-                    Lowest_Area: lowestAreaName
-                });
-                
-                // Sort history and set latest values
-                subjectAverages[subject].full_history.sort((a, b) => a.Source_Term.localeCompare(b.Source_Term));
-                const latest = subjectAverages[subject].full_history[subjectAverages[subject].full_history.length - 1];
-                subjectAverages[subject].latest_term = latest.Source_Term;
-                subjectAverages[subject].latest_score = latest.Overall_Avg_Score;
-                subjectAverages[subject].lowest_area = latest.Lowest_Area;
-            });
-
-            // Qualitative Analysis
-            const positiveWords = getTopWords(combinedData.map(r => r.Qual_Positive).filter(Boolean), 5);
-            const improvementWords = getTopWords(combinedData.map(r => r.Qual_Improvement).filter(Boolean), 5);
-
-            return { overallMetrics, subjectAverages, qualitative: { positive: positiveWords, improvement: improvementWords }, combinedData: combinedData };
-        };
-
-
-        // --- 4. LLM API Call for Observation Data Extraction ---
-        const API_MODEL = 'gemini-2.5-flash-preview-05-20';
-        const API_KEY = "";
-        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${API_MODEL}:generateContent?key=${API_KEY}`;
-        
         /**
-         * Uses Gemini to extract structured observation data from unstructured text.
-         * @param {string} rawText - The text content of the observation report(s).
-         * @returns {Promise<Array<Object>>} - An array of structured observation objects.
+         * Cleans, processes, and aggregates the feedback data.
+         * @param {Array<Object>} rawDataT1 - Parsed T1 data.
+         * @param {Array<Object>} rawDataT3 - Parsed T3 data.
+         * @returns {Object} Processed analysis data.
          */
-        const extractObservationDataWithGemini = async (rawText) => {
-            const systemPrompt = `You are a data extraction specialist. Your task is to analyze raw lesson observation reports provided as unstructured text. Identify and extract the required structured metrics, which must be scores on a 1-5 scale, as well as the subject and term of the observation. 
-
-            Instructions:
-            1. Analyze the text for explicit scores (1-5) or infer them based on the qualitative tone (e.g., 'Excellent pacing' = 5, 'Needs improvement in engagement' = 2, 'Satisfactory' = 3).
-            2. If you cannot find a subject or term, use 'Unspecified' for that field.
-            3. The user may paste multiple observation reports, separated by a blank line, a series of dashes (---), or other separators. You must process all distinct reports and return an array of objects, one for each report.
-            4. Only return the final JSON array. Do not add any conversational text or markdown formatting outside the JSON object.
-            
-            Metrics to Extract (1-5 Scale):
-            - Pace: Lesson Pacing and Structure
-            - Engagement: Student Participation and Focus
-            - Management: Classroom Management and Discipline
-            - Subject: The subject taught
-            - Source_Term: The term or date of the observation (e.g., T3 2025 Observation)`;
-
-            const payload = {
-                contents: [{ parts: [{ text: rawText }] }],
-                systemInstruction: { parts: [{ text: systemPrompt }] },
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "ARRAY",
-                        items: {
-                            type: "OBJECT",
-                            properties: {
-                                "Pace": { "type": "INTEGER" },
-                                "Engagement": { "type": "INTEGER" },
-                                "Management": { "type": "INTEGER" },
-                                "Subject": { "type": "STRING" },
-                                "Source_Term": { "type": "STRING" }
-                            },
-                            propertyOrdering: ["Pace", "Engagement", "Management", "Subject", "Source_Term"]
-                        }
-                    }
-                }
+        function processData(rawDataT1, rawDataT3) {
+            const dataSets = {
+                T1: rawDataT1,
+                T3: rawDataT3
             };
-            
-            const maxRetries = 3;
-            let lastError = null;
-            
-            for (let attempt = 0; attempt < maxRetries; attempt++) {
-                try {
-                    const response = await fetch(API_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
+            const analysis = {
+                totals: { T1: rawDataT1.length, T3: rawDataT3.length, combined: rawDataT1.length + rawDataT3.length },
+                quantitative: [],
+                qualitative: { positive: [], improvement: [] }
+            };
+
+            // 1. Quantitative Analysis
+            quantitativeQuestions.forEach(question => {
+                const results = { question: question, T1: 0, T3: 0, T1Count: 0, T3Count: 0 };
+
+                ['T1', 'T3'].forEach(term => {
+                    let totalScore = 0;
+                    let validCount = 0;
+                    const data = dataSets[term];
+
+                    data.forEach(row => {
+                        const ratingText = row[question];
+                        const score = ratingMap[ratingText];
+                        if (score) {
+                            totalScore += score;
+                            validCount++;
+                        }
                     });
 
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    
-                    const result = await response.json();
-                    
-                    const candidate = result.candidates?.[0];
-                    if (candidate && candidate.content?.parts?.[0]?.text) {
-                        const jsonString = candidate.content.parts[0].text;
-                        // The model returns a stringified JSON array, so parse it.
-                        try {
-                            const parsedJson = JSON.parse(jsonString);
-                            if (Array.isArray(parsedJson)) {
-                                return parsedJson;
-                            } else {
-                                // Sometimes the model returns a single object instead of an array with one object
-                                if (typeof parsedJson === 'object' && parsedJson !== null) {
-                                    return [parsedJson];
-                                }
-                                throw new Error("LLM response did not return an array of observations.");
-                            }
-                        } catch (e) {
-                            throw new Error(`Failed to parse LLM JSON output: ${e.message}`);
-                        }
-                    }
-                    throw new Error("LLM returned an invalid candidate structure.");
-                } catch (error) {
-                    lastError = error;
-                    if (attempt < maxRetries - 1) {
-                        const delay = Math.pow(2, attempt) * 1000;
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                    } else {
-                        throw new Error(`Failed to extract data after ${maxRetries} attempts: ${lastError.message}`);
+                    results[term] = validCount > 0 ? (totalScore / validCount) : 0;
+                    results[`${term}Count`] = validCount;
+                });
+                analysis.quantitative.push(results);
+            });
+
+            // 2. Qualitative Analysis
+            const allData = rawDataT1.concat(rawDataT3.map(d => ({ ...d, term: 'T3' })));
+
+            allData.forEach(row => {
+                const term = row.term || (rawDataT1.includes(row) ? 'T1' : 'T3');
+                const positiveText = (row[qualitativeQuestions.positive] || '').trim();
+                const improvementText = (row[qualitativeQuestions.improvement] || '').trim();
+
+                // Process POSITIVE Feedback
+                if (positiveText.length > 2) {
+                    analysis.qualitative.positive.push({
+                        text: positiveText,
+                        term: term,
+                        subject: row['What do I teach you?'] || 'N/A'
+                    });
+                }
+
+                // Process IMPROVEMENT Feedback (CRITICAL FILTER REVISION)
+                if (improvementText.length > 2) {
+                    const cleanedText = improvementText.toLowerCase().replace(/[^a-z0-9\s]/g, '');
+
+                    // Check if the cleaned text is one of the common non-constructive noise phrases
+                    const isNoise = IGNORE_IMPROVEMENT_COMMENTS.some(noise => cleanedText === noise);
+
+                    if (!isNoise) {
+                        analysis.qualitative.improvement.push({
+                            text: improvementText,
+                            term: term,
+                            subject: row['What do I teach you?'] || 'N/A'
+                        });
                     }
                 }
-            }
-        };
+            });
 
-        // --- 5. Lesson Observation Analysis Logic ---
-        
+            return analysis;
+        }
+
         /**
-         * Analyzes the structured observation data (either from LLM or CSV)
-         * @param {Array<Object>} observationData - Array of observation objects.
-         * @returns {Object}
+         * Renders the qualitative comments into the designated containers.
+         * @param {Object} analysis - The processed analysis data.
          */
-        const analyzeObservationData = (observationData) => {
-            let combinedData = observationData;
-            if (combinedData.length === 0) return { overallMetrics: [], subjectAverages: {}, rawData: [] };
+        function renderQualitativeComments(analysis) {
+            const renderComments = (containerId, comments, isImprovement) => {
+                const container = document.getElementById(containerId);
+                const countElement = document.getElementById(`${containerId.split('-')[0]}-count`);
+                container.innerHTML = '';
 
-            // Ensure numeric scores and clean subjects
-            const OBS_SCORE_COLS = ['Pace', 'Engagement', 'Management'];
-            
-            combinedData.forEach(row => {
-                row.Subject = row.Subject || 'Unspecified';
-                row.Source_Term = row.Source_Term || 'Unspecified Observation';
-                OBS_SCORE_COLS.forEach(col => {
-                    row[col] = parseFloat(row[col]) || 0; // Convert scores to numbers
+                comments.sort((a, b) => b.term.localeCompare(a.term)); // Sort T3 first, then T1
+
+                comments.forEach(c => {
+                    const termColor = c.term === 'T3' ? 'bg-green-600' : 'bg-blue-600';
+                    const sentimentIcon = isImprovement ? '⚙️' : '🌟';
+
+                    const commentHtml = `
+                        <div class="p-3 rounded-lg border border-gray-700 bg-gray-800 shadow-lg">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-sm font-semibold text-gray-300 flex items-center">
+                                    ${sentimentIcon} ${c.subject}
+                                </span>
+                                <span class="text-xs font-mono px-2 py-0.5 rounded ${termColor}">${c.term}</span>
+                            </div>
+                            <p class="text-sm italic">${c.text}</p>
+                        </div>
+                    `;
+                    container.insertAdjacentHTML('beforeend', commentHtml);
                 });
-            });
 
-            // Calculate Overall Score
-            combinedData.forEach(row => {
-                const scores = OBS_SCORE_COLS.map(col => row[col]).filter(s => s > 0);
-                row['Obs_Overall_Score'] = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
-            });
-
-            // Overall Term Averages 
-            const termAverages = {};
-            combinedData.forEach(row => {
-                const term = row['Source_Term'];
-                termAverages[term] = termAverages[term] || { count: 0, totalScores: {} };
-                termAverages[term].count++;
-                OBS_SCORE_COLS.concat(['Obs_Overall_Score']).forEach(col => {
-                    termAverages[term].totalScores[col] = (termAverages[term].totalScores[col] || 0) + row[col];
-                });
-            });
-
-            const overallMetrics = [];
-            Object.keys(termAverages).sort().forEach(term => {
-                const avgRow = { Source_Term: term };
-                OBS_SCORE_COLS.concat(['Obs_Overall_Score']).forEach(col => {
-                    avgRow[col] = termAverages[term].totalScores[col] / termAverages[term].count;
-                });
-                overallMetrics.push(avgRow);
-            });
-
-
-            // Subject Averages
-            const subjectAverages = {};
-            combinedData.forEach(row => {
-                const subject = row['Subject'];
-                const avgScores = {};
-                OBS_SCORE_COLS.forEach(col => {
-                    avgScores[col] = row[col];
-                });
-                
-                const lowestScoreCol = OBS_SCORE_COLS.reduce((minCol, col) => 
-                    avgScores[col] < avgScores[minCol] ? col : minCol, OBS_SCORE_COLS[0]
-                );
-                
-                // For observation, we typically only report the latest single result
-                subjectAverages[subject] = {
-                    latest_term: row['Source_Term'],
-                    latest_score: row['Obs_Overall_Score'],
-                    lowest_area: lowestScoreCol.toUpperCase()
-                };
-            });
-            
-            return { overallMetrics, subjectAverages, rawData: combinedData };
-        };
-
-
-        // --- 6. LLM Self-Assessment against Matrix ---
-        
-        const generateSelfAssessment = async (feedbackResults, obsResults, matrixContent) => {
-            
-            const studentMetrics = feedbackResults.overallMetrics;
-            const latestStudentMetrics = studentMetrics.length > 0 ? studentMetrics[studentMetrics.length - 1] : null;
-            const studentQualitative = feedbackResults.qualitative;
-            
-            const obsRawData = obsResults.rawData;
-
-            if (!latestStudentMetrics && obsRawData.length === 0) {
-                return [];
-            }
-            
-            // Format the key data points into a single text block for the LLM
-            const dataSummary = `
-                --- ANALYZED PERFORMANCE DATA ---
-
-                [A] Latest Student Feedback Metrics (T3 2025 or latest term):
-                ${latestStudentMetrics ? studentMetrics.map(m => `- ${m.metric}: ${m.t3.toFixed(2)} / 5.0`).join('\n') : '- No quantitative student feedback data available.'}
-                
-                [B] Top Positive Themes from Student Feedback (Qualitative):
-                - ${studentQualitative.positive.join(', ') || 'N/A'}
-                
-                [C] Key Improvement Themes from Student Feedback (Qualitative):
-                - ${studentQualitative.improvement.join(', ') || 'N/A'}
-
-                [D] Observation Report Metrics:
-                ${obsRawData.map(o => 
-                    `- Observation Term: ${o.Source_Term}, Subject: ${o.Subject}, Pace: ${o.Pace}/5, Engagement: ${o.Engagement}/5, Management: ${o.Management}/5`
-                ).join('\n') || '- No observation data available.'}
-
-                --- COLLEGE QUALITY MATRIX REQUIREMENTS ---
-                ${matrixContent}
-            `;
-
-            const systemPrompt = `You are a professional teaching analyst specializing in aligning performance data with institutional standards. Your task is to perform a self-assessment based on the provided student feedback, observation data, and the Hurunui College Quality Practices Matrix.
-
-            For EACH requirement listed in the matrix, you must:
-            1. Determine how well the provided data (A, B, C, D) supports the requirement being met.
-            2. Assign a Confidence Score from 1 (poor fit) to 5 (strong evidence).
-            3. Provide the most compelling piece of **direct evidence** (e.g., a specific score or a key qualitative theme).
-            4. Suggest a single, highly **specific action step** to either maintain the high standard or address a weakness identified by the data.
-
-            You MUST only return the final JSON array according to the schema.`;
-
-            const payload = {
-                contents: [{ parts: [{ text: dataSummary }] }],
-                systemInstruction: { parts: [{ text: systemPrompt }] },
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "ARRAY",
-                        items: {
-                            type: "OBJECT",
-                            properties: {
-                                "Standard_Summary": { "type": "STRING", "description": "A concise summary of the standard being assessed (e.g., 'Use diverse strategies and technology' or 'Provide ongoing feedback')." },
-                                "Confidence_Score_1_5": { "type": "INTEGER", "description": "A score from 1 (low confidence/evidence) to 5 (high confidence/evidence) that the data supports meeting this standard." },
-                                "Supporting_Evidence": { "type": "STRING", "description": "Concrete evidence from the student feedback or observation data (e.g., 'Student score of 4.5 in Clarity', or 'Observation score of 5 in Pace')." },
-                                "Suggested_Action": { "type": "STRING", "description": "A specific, actionable step to improve performance related to this standard." }
-                            },
-                            propertyOrdering: ["Standard_Summary", "Confidence_Score_1_5", "Supporting_Evidence", "Suggested_Action"]
-                        }
-                    }
-                }
+                countElement.textContent = `Total relevant comments: ${comments.length}`;
             };
 
-            const maxRetries = 3;
-            let lastError = null;
-            
-            for (let attempt = 0; attempt < maxRetries; attempt++) {
-                try {
-                    const response = await fetch(API_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
+            renderComments('improvement-comments', analysis.qualitative.improvement, true);
+            renderComments('positive-comments', analysis.qualitative.positive, false);
+        }
 
-                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                    
-                    const result = await response.json();
-                    
-                    const candidate = result.candidates?.[0];
-                    if (candidate && candidate.content?.parts?.[0]?.text) {
-                        const jsonString = candidate.content.parts[0].text;
-                        return JSON.parse(jsonString);
-                    }
-                    throw new Error("LLM returned an invalid candidate structure for self-assessment.");
-                } catch (error) {
-                    lastError = error;
-                    if (attempt < maxRetries - 1) {
-                        const delay = Math.pow(2, attempt) * 1000;
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                    } else {
-                        throw new Error(`Failed to generate self-assessment after ${maxRetries} attempts: ${lastError.message}`);
-                    }
-                }
-            }
-        };
+        /**
+         * Renders a single grouped bar chart for a quantitative question.
+         * @param {Object} data - The data for a single question.
+         */
+        function renderGroupedBarChart(data) {
+            const margin = { top: 20, right: 20, bottom: 30, left: 100 };
+            const container = document.getElementById('chart-container');
+            const chartDiv = document.createElement('div');
+            chartDiv.id = `chart-${data.question.replace(/\s/g, '-')}`;
+            chartDiv.className = 'chalkboard-card p-6';
+            container.appendChild(chartDiv);
 
-        // --- 7. Rendering Functions ---
-        
-        let analysisResults = { studentFeedbackData: null, observationData: null, selfAssessment: null };
+            // Responsive sizing: full width on mobile, max 700px on desktop
+            const width = Math.min(chartDiv.clientWidth - margin.left - margin.right, 700);
+            const height = 150 - margin.top - margin.bottom;
 
-        // ... (renderOverallScores, renderSubjectTrends, renderQualitativeFeedback, renderObservationMetrics are unchanged) ...
-        const renderOverallScores = (metrics) => {
-            const container = document.getElementById('overall-scores');
-            if (!metrics || metrics.length === 0) {
-                container.innerHTML = `<p class="chalk-text text-lg p-4 text-gray-400">No student feedback data available for term comparison.</p>`;
-                return;
-            }
+            const svg = d3.select(`#${chartDiv.id}`)
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom + 20) // +20 for bottom labels
+                .append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
 
-            const t1Label = metrics[0].t1_label; 
-            const t3Label = metrics[0].t3_label; 
-            
-            let tableHTML = `
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="chalk-text text-lg border-b border-gray-500">
-                            <th class="p-3 font-bold">Metric (Score 1-5)</th>
-                            <th class="p-3 font-bold text-center">${t1Label.split(' ')[0]} (Avg)</th>
-                            <th class="p-3 font-bold text-center">${t3Label.split(' ')[0]} (Avg)</th>
-                            <th class="p-3 font-bold text-center">Change</th>
-                            <th class="p-3 font-bold">Trend</th>
-                        </tr>
-                    </thead>
-                    <tbody class="chalk-text text-base">
-            `;
+            // Title
+            d3.select(`#${chartDiv.id}`).insert('h3', 'svg')
+                .attr('class', 'chalkboard-header text-lg mb-4')
+                .text(data.question);
 
-            metrics.forEach(item => {
-                const change = (item.t3 - item.t1).toFixed(2);
-                const trendIcon = change > 0 ? '▲' : (change < 0 ? '▼' : '▬');
-                const trendColor = change > 0 ? 'text-green-400' : (change < 0 ? 'text-red-400' : 'text-gray-400');
-                const backgroundColor = item.t3 > item.t1 ? 'bg-green-800/20' : (item.t3 < item.t1 ? 'bg-red-800/20' : '');
+            // Data structure for D3
+            const chartData = [
+                { term: 'T1', mean: data.T1, count: data.T1Count },
+                { term: 'T3', mean: data.T3, count: data.T3Count }
+            ];
 
+            // Scales
+            const x = d3.scaleBand()
+                .domain(['T1', 'T3'])
+                .range([0, width])
+                .padding(0.2);
 
-                tableHTML += `
-                    <tr class="border-b border-gray-600 hover:${backgroundColor}">
-                        <td class="p-3 font-semibold ${item.color}">${item.metric}</td>
-                        <td class="p-3 text-center">${item.t1.toFixed(2)}</td>
-                        <td class="p-3 text-center font-bold ${item.t3 > item.t1 ? 'text-yellow-300' : ''}">${item.t3.toFixed(2)}</td>
-                        <td class="p-3 text-center ${trendColor}">${change}</td>
-                        <td class="p-3 text-center ${trendColor} text-xl">${trendIcon}</td>
-                    </tr>
-                `;
-            });
+            // Max mean score is 5 (5=Always, Very Clear, etc.)
+            const y = d3.scaleLinear()
+                .domain([0, 5])
+                .range([height, 0]);
 
-            tableHTML += `</tbody></table>`;
-            container.innerHTML = tableHTML;
-        };
+            // Axes
+            svg.append("g")
+                .attr("class", "axis")
+                .attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(x));
 
-        const renderSubjectTrends = (studentAverages, obsAverages) => {
-            const container = document.getElementById('subject-trends');
-            container.innerHTML = ''; 
+            svg.append("g")
+                .attr("class", "axis")
+                .call(d3.axisLeft(y).ticks(5).tickFormat(d => d.toFixed(1)));
 
-            const allSubjects = new Set([...Object.keys(studentAverages), ...Object.keys(obsAverages)]);
-            if (allSubjects.size === 0) {
-                 container.innerHTML = `<p class="chalk-text p-4 md:col-span-3 text-center text-gray-400">No subject-specific data available yet.</p>`;
-                 return;
-            }
+            // Bars
+            svg.selectAll(".bar")
+                .data(chartData)
+                .enter().append("rect")
+                .attr("class", d => `bar-${d.term.toLowerCase()}`)
+                .attr("x", d => x(d.term))
+                .attr("y", d => y(d.mean))
+                .attr("width", x.bandwidth())
+                .attr("height", d => height - y(d.mean))
+                .on("mouseover", function(event, d) {
+                    d3.select(this).style("fill", "#f39c12"); // Highlight on hover
+                    // Tooltip display
+                    svg.append("text")
+                        .attr("class", "mean-label")
+                        .attr("x", x(d.term) + x.bandwidth() / 2)
+                        .attr("y", y(d.mean) - 5)
+                        .attr("text-anchor", "middle")
+                        .attr("fill", "#ecf0f1")
+                        .attr("font-size", "12px")
+                        .text(`${d.mean.toFixed(2)} (n=${d.count})`);
+                })
+                .on("mouseout", function(event, d) {
+                    d3.select(this).style("fill", d.term === 'T1' ? '#3498db' : '#2ecc71'); // Revert color
+                    svg.selectAll(".mean-label").remove(); // Remove tooltip
+                });
 
-            allSubjects.forEach(subject => {
-                const studentData = studentAverages[subject];
-                const obsData = obsAverages[subject];
-
-                // Student Metrics
-                const latestScore = studentData ? studentData.latest_score.toFixed(2) : 'N/A';
-                const lowestStudentArea = studentData ? studentData.lowest_area : 'N/A (No Feedback)';
-                const studentTerm = studentData ? studentData.latest_term.split(' ')[0] : 'N/A';
-                
-                // Get history for trend calculation
-                let changeIndicator = '';
-                if (studentData && studentData.full_history.length > 1) {
-                    const history = studentData.full_history;
-                    const latestTermScore = history[history.length - 1].Overall_Avg_Score;
-                    const earliestTermScore = history[0].Overall_Avg_Score;
-                    
-                    const change = (latestTermScore - earliestTermScore).toFixed(2);
-                    const trend = change > 0 ? `<span class="text-green-400">▲ +${change}</span>` : `<span class="text-red-400">▼ ${change}</span>`;
-                    const earliestLabel = history[0].Source_Term.split(' ')[0];
-                    const latestLabel = history[history.length - 1].Source_Term.split(' ')[0];
-                    changeIndicator = `<p class="text-sm chalk-text mt-1">${earliestLabel} vs ${latestLabel}: ${trend}</p>`;
-                }
-                
-                // Observation Metrics
-                const obsScore = obsData ? obsData.latest_score.toFixed(2) : 'N/A';
-                const obsLowestArea = obsData ? obsData.lowest_area : 'N/A (No Observation)';
-                const obsTerm = obsData ? obsData.latest_term.split(' ')[0] : 'N/A';
-
-                // Card Structure
-                const cardHTML = `
-                    <div class="score-box p-6 rounded-xl hover:ring-4 hover:ring-yellow-500/50 transition duration-300">
-                        <h3 class="text-2xl font-bold chalk-text mb-3 text-blue-300">${subject}</h3>
-                        
-                        <div class="flex justify-between items-end mb-4 border-b border-gray-600 pb-2">
-                             <div>
-                                <p class="text-sm chalk-text">Student Avg. (${studentTerm})</p>
-                                <p class="text-4xl font-extrabold ${latestScore >= 4.3 ? 'text-yellow-300' : 'text-orange-300'}">${latestScore}</p>
-                                ${changeIndicator}
-                            </div>
-                            <div>
-                                <p class="text-sm chalk-text text-right">Obs. Score (${obsTerm})</p>
-                                <p class="text-4xl font-extrabold text-pink-300 text-right">${obsScore}</p>
-                            </div>
-                        </div>
-                        
-                        <div class="mt-2">
-                            <p class="text-sm font-light chalk-text mb-1 text-yellow-500">Key Focus Areas:</p>
-                            <p class="text-base font-semibold text-red-300">Student Feedback: ${lowestStudentArea}</p>
-                            <p class="text-base font-semibold text-red-300">Observation: ${obsLowestArea}</p>
-                        </div>
-                    </div>
-                `;
-                container.innerHTML += cardHTML;
-            });
-        };
-
-        const renderQualitativeFeedback = (qualitative) => {
-            const renderList = (id, items) => {
-                const container = document.getElementById(id);
-                if (items && items.length > 0) {
-                     container.innerHTML = items.map(item => `<li class="text-lg">${item}</li>`).join('');
-                } else {
-                     container.innerHTML = `<li class="text-lg text-gray-400">No qualitative data found in files.</li>`;
-                }
-            };
-            
-            if (qualitative) {
-                renderList('positive-feedback-list', qualitative.positive);
-                renderList('improvement-feedback-list', qualitative.improvement);
-            }
-        };
-        
-        const renderObservationMetrics = (obsMetrics) => {
-             const container = document.getElementById('observation-metrics');
-
-             if (!obsMetrics || obsMetrics.length === 0) {
-                 container.innerHTML = `<p class="chalk-text text-lg text-gray-400">No professional observation data has been analyzed.</p>`;
-                 return;
-             }
-             
-             // Get the latest observation data
-             const latestObs = obsMetrics[obsMetrics.length - 1];
-             const latestTerm = latestObs.Source_Term;
-             const overallScore = latestObs.Obs_Overall_Score.toFixed(2);
-             
-             const metricsToDisplay = [
-                 { label: 'Lesson Pace', key: 'Pace' },
-                 { label: 'Student Engagement', key: 'Engagement' },
-                 { label: 'Classroom Management', key: 'Management' }
-             ];
-
-             let html = `
-                <p class="text-lg font-semibold chalk-text mb-3">Latest Report: <span class="text-yellow-300">${latestTerm}</span></p>
-                <div class="mb-4 p-4 rounded-lg bg-gray-700/30">
-                    <p class="text-xl chalk-text font-light">Overall Observation Score (Avg of Metrics)</p>
-                    <p class="text-5xl font-extrabold text-pink-400">${overallScore}</p>
-                </div>
-             `;
-             
-             html += `<ul class="space-y-3 pt-3">`;
-
-             metricsToDisplay.forEach(m => {
-                 const score = latestObs[m.key] ? latestObs[m.key].toFixed(2) : 'N/A';
-                 html += `
-                    <li class="flex justify-between items-center text-lg chalk-text border-b border-gray-600 pb-2">
-                        <span>${m.label}:</span>
-                        <span class="font-bold text-xl text-blue-300">${score}</span>
-                    </li>
-                 `;
-             });
-             
-             html += `</ul>`;
-             
-             container.innerHTML = html;
-        };
-
-        const renderSelfAssessment = (assessmentData) => {
-            const container = document.getElementById('self-assessment-report');
-            if (!assessmentData || assessmentData.length === 0) {
-                container.innerHTML = `<p class="chalk-text p-4 text-center text-gray-400">Not enough data to cross-reference against College Quality Practices.</p>`;
-                return;
-            }
-
-            let html = '<div class="space-y-8">';
-            assessmentData.forEach(item => {
-                const score = item.Confidence_Score_1_5 || 0;
-                const color = score >= 4 ? 'text-green-400' : (score >= 3 ? 'text-yellow-400' : 'text-red-400');
-                const progressBar = `
-                    <div class="h-2 w-full rounded-full bg-gray-700 mt-1">
-                        <div class="h-2 rounded-full ${score >= 4 ? 'bg-green-500' : (score >= 3 ? 'bg-yellow-500' : 'bg-red-500')}" 
-                             style="width: ${(score / 5) * 100}%;">
-                        </div>
-                    </div>
-                `;
-
-                html += `
-                    <div class="score-box p-6 rounded-xl border border-blue-400/50">
-                        <h3 class="text-xl font-bold chalk-text text-blue-300 mb-3">${item.Standard_Summary}</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div class="md:col-span-1">
-                                <p class="text-sm font-semibold chalk-text text-gray-400">Confidence Score (Evidence-Based)</p>
-                                <p class="text-4xl font-extrabold ${color} mt-1">${score.toFixed(1)} <span class="text-lg text-gray-400">/ 5</span></p>
-                                ${progressBar}
-                            </div>
-                            <div class="md:col-span-2">
-                                <p class="text-sm font-semibold chalk-text text-gray-400">Supporting Evidence</p>
-                                <p class="chalk-text text-lg italic mt-1 bg-gray-700/30 p-2 rounded-md">${item.Supporting_Evidence || 'No direct evidence found.'}</p>
-                            </div>
-                        </div>
-                        <div class="mt-4 pt-4 border-t border-gray-600">
-                             <p class="text-sm font-semibold chalk-text text-gray-400">Suggested Action Step</p>
-                            <p class="chalk-text text-lg font-medium mt-1">${item.Suggested_Action || 'No specific action suggested.'}</p>
-                        </div>
-                    </div>
-                `;
-            });
-            html += '</div>';
-            container.innerHTML = html;
-        };
+            // Y-Axis Label
+            svg.append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("y", 0 - margin.left + 15)
+                .attr("x", 0 - (height / 2))
+                .attr("dy", "1em")
+                .attr("fill", "#ecf0f1")
+                .style("text-anchor", "middle")
+                .text("Mean Score (1 - 5)");
+        }
 
 
-        // --- 8. Main Controller & DND Logic ---
-        
-        const analyzeButton = document.getElementById('analyze-button');
-        const feedbackFilesInput = document.getElementById('feedback-files');
-        const observationTextInput = document.getElementById('observation-text');
-        const loadingSpinner = document.getElementById('loading-spinner');
-        const analyzeIcon = document.getElementById('analyze-icon');
-        const analyzeText = document.getElementById('analyze-text');
-        const statusMessage = document.getElementById('analysis-status');
-        
-        const dropZone = document.getElementById('drop-zone');
-        const fileCountElement = document.getElementById('file-count');
-        const dropZoneText = document.getElementById('drop-text');
-
-        // DND Handlers
-        const handleDragOver = (e) => {
-            e.preventDefault();
-            dropZone.classList.add('drag-over');
-            dropZoneText.textContent = 'Drop your CSV files now...';
-        };
-
-        const handleDragLeave = (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('drag-over');
-            updateDropZoneDisplay(feedbackFilesInput.files.length);
-        };
-
-        const handleDrop = (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('drag-over');
-            const files = e.dataTransfer.files;
-            
-            // Filter for CSVs only and assign to the input element
-            const csvFiles = Array.from(files).filter(file => file.type === 'text/csv' || file.name.endsWith('.csv'));
-            
-            if (csvFiles.length > 0) {
-                // Use DataTransfer object to create a FileList
-                const dataTransfer = new DataTransfer();
-                csvFiles.forEach(file => dataTransfer.items.add(file));
-                feedbackFilesInput.files = dataTransfer.files;
-                
-                updateDropZoneDisplay(csvFiles.length);
-            } else {
-                updateDropZoneDisplay(feedbackFilesInput.files.length, 'Only CSV files accepted. Try again.');
-            }
-        };
-        
-        const updateDropZoneDisplay = (count, defaultText = 'Drag & drop your **CSV files** here, or click to browse.') => {
-            dropZoneText.innerHTML = defaultText;
-            if (count > 0) {
-                fileCountElement.textContent = `${count} file${count === 1 ? '' : 's'} loaded. Click "Analyze" to proceed.`;
-                fileCountElement.classList.remove('hidden');
-            } else {
-                fileCountElement.classList.add('hidden');
-            }
-        };
-
-        const updateUIState = (isProcessing, message = '', isError = false) => {
-            analyzeButton.disabled = isProcessing;
-            loadingSpinner.style.display = isProcessing ? 'block' : 'none';
-            analyzeIcon.style.display = isProcessing ? 'none' : 'block';
-            analyzeText.textContent = isProcessing ? 'Analyzing Data...' : 'Analyze Data & Update Dashboard';
-            statusMessage.textContent = message;
-            statusMessage.classList.toggle('hidden', message === '');
-            statusMessage.classList.remove('text-green-300', 'text-red-300', 'text-yellow-300');
-            if (isError) {
-                statusMessage.classList.add('text-red-300');
-            } else if (message.includes('successfully')) {
-                statusMessage.classList.add('text-green-300');
-            } else if (message) {
-                statusMessage.classList.add('text-yellow-300');
-            }
-        };
-
-        const startAnalysis = async () => {
-            updateUIState(true);
-            
-            const feedbackFiles = Array.from(feedbackFilesInput.files);
-            const observationText = observationTextInput.value.trim();
-
-            if (feedbackFiles.length === 0 && observationText.length === 0) {
-                updateUIState(false, 'Please provide data (CSV or Observation Text) to analyze.', true);
-                return;
-            }
-
+        // --- MAIN EXECUTION LOGIC ---
+        window.onload = function() {
             try {
-                // 1. Process Student Feedback Files
-                updateUIState(true, '1/3. Reading and Parsing CSV Files...');
-                const feedbackDataPromises = feedbackFiles.map(processFile);
-                const feedbackDataFrames = await Promise.all(feedbackDataPromises);
-                
-                updateUIState(true, '1/3. Analyzing Student Feedback Data...');
-                const studentFeedbackResults = analyzeStudentFeedback(feedbackDataFrames);
-                
-                // --- 2 & 3. Process Observation Data & Self-Assessment (CRITICAL BLOCK) ---
-                let observationResults = { overallMetrics: [], subjectAverages: {}, rawData: [] };
-                let selfAssessmentData = [];
-                let llmFailed = false;
+                // 1. Parse and Process Data
+                const rawT1 = parseCSV(csvDataT1);
+                const rawT3 = parseCSV(csvDataT3);
+                const analysis = processData(rawT1, rawT3);
 
-                if (observationText) {
-                    try {
-                        updateUIState(true, '2/3. Attempting to Extract Observation Data using LLM...');
-                        const structuredObservationData = await extractObservationDataWithGemini(observationText);
-                        observationResults = analyzeObservationData(structuredObservationData);
-                        
-                        updateUIState(true, '3/3. Generating Self-Assessment Report against College Standards...');
-                        selfAssessmentData = await generateSelfAssessment(studentFeedbackResults, observationResults, HC_QUALITY_MATRIX_CONTENT);
-                        
-                    } catch (error) {
-                        console.error("LLM Analysis Error (403 or other):", error);
-                        llmFailed = true;
-                        // Use a specific error message for the 403 or general API failure
-                        const errorMsg = error.message && error.message.includes("403") 
-                            ? "API Access Denied (403). Cannot process Observation Text or Self-Assessment." 
-                            : `LLM Processing Failed. Cannot process Observation Text or Self-Assessment: ${error.message.substring(0, 80)}...`;
+                // 2. Update Summary Totals
+                document.getElementById('total-t1').textContent = analysis.totals.T1;
+                document.getElementById('total-t3').textContent = analysis.totals.T3;
+                document.getElementById('total-combined').textContent = analysis.totals.combined;
 
-                        // The UI will be updated with this error message later.
-                    }
-                }
-                
-                // 4. Update Global Results and Render the Dashboard
-                analysisResults.studentFeedbackData = studentFeedbackResults;
-                analysisResults.observationData = observationResults;
-                analysisResults.selfAssessment = selfAssessmentData;
+                // 3. Render Quantitative Charts
+                analysis.quantitative.forEach(renderGroupedBarChart);
 
-                renderOverallScores(studentFeedbackResults.overallMetrics);
-                renderSubjectTrends(studentFeedbackResults.subjectAverages, observationResults.subjectAverages);
-                renderQualitativeFeedback(studentFeedbackResults.qualitative);
-                renderObservationMetrics(observationResults.overallMetrics);
-                renderSelfAssessment(selfAssessmentData);
+                // 4. Render Qualitative Comments
+                renderQualitativeComments(analysis);
 
-                // Final UI state update
-                if (llmFailed) {
-                     updateUIState(false, "Dashboard Updated! Note: The LLM features (Observation Metrics and Self-Assessment) failed due to an API access error. Check CSV data above.", true);
-                } else {
-                    updateUIState(false, 'Analysis and Self-Assessment completed successfully! Dashboard updated.');
-                }
+                // 5. Show Dashboard Content
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('summary-cards').classList.remove('hidden');
+                document.getElementById('quantitative-charts').classList.remove('hidden');
+                document.getElementById('qualitative-comments').classList.remove('hidden');
 
             } catch (error) {
-                // This catch handles errors in CSV parsing (step 1)
-                console.error("Critical Analysis Error (CSV Parsing):", error);
-                updateUIState(false, `Critical failure during CSV processing: ${error.message}. Please check your CSV files and try again.`, true);
+                console.error("An error occurred during data processing or rendering:", error);
+                document.getElementById('loading').textContent = 'Error loading dashboard. Check console for details.';
             }
         };
-
-        window.onload = () => {
-            analyzeButton.addEventListener('click', startAnalysis);
-            updateUIState(false, 'Ready to analyze data.');
-            
-            // DND Wiring
-            dropZone.addEventListener('dragover', handleDragOver);
-            dropZone.addEventListener('dragleave', handleDragLeave);
-            dropZone.addEventListener('drop', handleDrop);
-            
-            // Click to browse wiring
-            dropZone.addEventListener('click', () => {
-                feedbackFilesInput.click();
-            });
-            
-            // Update display when using the click-to-browse method
-            feedbackFilesInput.addEventListener('change', () => {
-                updateDropZoneDisplay(feedbackFilesInput.files.length);
-            });
-        };
-
     </script>
+
 </body>
 </html>
