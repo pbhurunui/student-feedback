@@ -1,368 +1,304 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import Papa from 'papaparse';
-import { Search, Loader2, Upload, BarChart2, MessageSquare, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
-
-// --- Theme: Clean & Modern (using Indigo as the primary accent) ---
-const PRIMARY_ACCENT = 'indigo-600';
-const BG_COLOR = 'gray-50';
-const CARD_BG = 'white';
-const TEXT_COLOR = 'gray-800';
-
-// Simple utility to find the most frequent value in an array
-const getMode = (arr) => {
-    const counts = arr.reduce((acc, value) => {
-        acc[value] = (acc[value] || 0) + 1;
-        return acc;
-    }, {});
-    let maxCount = 0;
-    let mode = '';
-    for (const key in counts) {
-        if (counts[key] > maxCount) {
-            maxCount = counts[key];
-            mode = key;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2025 Student Feedback Comparative Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom Font */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f7;
+            transition: background-color 0.5s ease;
         }
-    }
-    return mode;
-};
+        /* Custom Scrollbar for better aesthetics */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #e0e0e0; }
+        ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
 
-// --- Main App Component ---
-const App = () => {
-  const [file, setFile] = useState(null);
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [fileName, setFileName] = useState('');
-  const [activeTab, setActiveTab] = useState('summary');
-  const [showHelp, setShowHelp] = useState(false);
-
-  const handleFileChange = (event) => {
-    const uploadedFile = event.target.files[0];
-    if (uploadedFile && uploadedFile.name.endsWith('.csv')) {
-      setFile(uploadedFile);
-      setFileName(uploadedFile.name);
-      setData(null);
-      setError('');
-    } else {
-      setError('Please upload a valid CSV file.');
-      setFile(null);
-      setFileName('');
-    }
-  };
-
-  const parseCSV = useCallback(() => {
-    if (!file) return;
-
-    setLoading(true);
-    setError('');
-
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        setLoading(false);
-        if (results.errors.length) {
-          setError('CSV parsing error. Check file format.');
-          console.error(results.errors);
-          return;
+        /* Custom Card Styles for pop effect */
+        .feedback-card {
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1), 0 6px 6px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(5px);
+            background-color: rgba(255, 255, 255, 0.9);
+        }
+        .feedback-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15), 0 8px 8px rgba(0, 0, 0, 0.08);
         }
 
-        if (results.data.length === 0) {
-            setError('The CSV file is empty or contains no meaningful data.');
-            return;
-        }
-
-        // Clean-up/standardization
-        const cleanedData = results.data.map(row => {
-            const newRow = {};
-            for (const key in row) {
-                const cleanKey = key.trim();
-                newRow[cleanKey] = (row[key] || '').trim();
-            }
-            return newRow;
-        }).filter(row => Object.values(row).some(val => val !== '')); 
-
-        setData(cleanedData);
-      },
-      error: (error) => {
-        setLoading(false);
-        setError('Failed to process file: ' + error.message);
-      }
-    });
-  }, [file]);
-
-  useEffect(() => {
-    if (file) {
-      parseCSV();
-    }
-  }, [file, parseCSV]);
-
-  // --- Data Analysis Logic (Based on common CSV headers) ---
-  const analysisSummary = useMemo(() => {
-    if (!data || data.length === 0) return null;
-
-    const totalResponses = data.length;
-    
-    // Map friendly metric names to expected CSV column headers
-    const keyMetrics = {
-        'Clarity': 'How clearly do I explain the lessons?',
-        'Engagement': 'How interesting are the lessons?',
-        'Comfort': 'How comfortable do you feel asking for help in class?',
-        'Safety': 'Do I create an environment where you feel safe and heard?',
-        'FeedbackSpeed': 'How quickly do I give feedback on work or assignments?',
-    };
-
-    const metricResults = {};
-
-    for (const [metricKey, columnHeader] of Object.entries(keyMetrics)) {
-        const responses = data.map(row => row[columnHeader]).filter(v => v);
+        /* Dynamic Theme Colors (defined in JS, set via attribute) */
+        [data-theme="All Subjects"] .theme-bg-gradient { background: linear-gradient(135deg, #4F46E5, #8B5CF6); }
+        [data-theme="Music"] .theme-bg-gradient { background: linear-gradient(135deg, #EF4444, #F97316); } /* Red/Orange for Music */
+        [data-theme="Ako"] .theme-bg-gradient { background: linear-gradient(135deg, #10B981, #34D399); } /* Green for Ako */
+        [data-theme="Digital Technology"] .theme-bg-gradient { background: linear-gradient(135deg, #06B6D4, #38BDF8); } /* Cyan/Blue for Digital Tech */
         
-        if (responses.length > 0) {
-            metricResults[metricKey] = {
-                mode: getMode(responses),
-                count: responses.length,
-                responses: responses
-            };
-        } else {
-            metricResults[metricKey] = { mode: 'N/A', count: 0, responses: [] };
+        [data-theme="All Subjects"] .theme-text { color: #4F46E5; }
+        [data-theme="Music"] .theme-text { color: #EF4444; }
+        [data-theme="Ako"] .theme-text { color: #10B981; }
+        [data-theme="Digital Technology"] .theme-text { color: #06B6D4; }
+
+        /* Ensure table text is readable against card background */
+        .data-table th, .data-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
         }
-    }
-    
-    // Analyze open feedback
-    const likes = data.map(row => row['What do you like most about how I teach?']).filter(v => v);
-    const improvements = data.map(row => row['What do you think could be improved about how I teach?']).filter(v => v && v.toLowerCase() !== 'nothing' && v.toLowerCase() !== 'nope' && v.toLowerCase() !== '-');
+    </style>
+</head>
+<body id="app-body" data-theme="All Subjects" class="min-h-screen p-4 sm:p-8">
 
-    return {
-        totalResponses,
-        metricResults,
-        likes,
-        improvements
-    };
-  }, [data]);
-
-  // --- Rendering Components ---
-
-  const CleanButton = ({ children, onClick, active, icon: Icon, disabled = false }) => (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`
-        flex items-center justify-center px-4 py-2 mx-1
-        text-sm font-semibold tracking-wide uppercase
-        rounded-lg transition-all duration-200 whitespace-nowrap
-        ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-[0.98]'}
-        ${active
-          ? `bg-${PRIMARY_ACCENT} text-white shadow-lg shadow-indigo-500/50`
-          : `bg-gray-200 text-${TEXT_COLOR} hover:bg-gray-300 border border-gray-300`
-        }
-      `}
-    >
-      {Icon && <Icon className="w-4 h-4 mr-2" />}
-      {children}
-    </button>
-  );
-
-  // Clean Card component with white background and subtle shadow
-  const Card = ({ title, children, icon: Icon, className = '' }) => (
-    <div 
-        className={`p-6 rounded-xl shadow-lg h-full ${className}`} 
-        style={{ backgroundColor: CARD_BG }}
-    >
-      <h3 className={`text-xl font-bold mb-3 flex items-center border-b pb-2 text-${PRIMARY_ACCENT}`}>
-        {Icon && <Icon className="w-5 h-5 mr-3" />}
-        {title}
-      </h3>
-      <div className="text-gray-700">
-        {children}
-      </div>
+    <div id="header-banner" class="theme-bg-gradient text-white rounded-xl p-6 mb-8 transition-all duration-500">
+        <h1 class="text-3xl sm:text-4xl font-extrabold mb-1">2025 Student Feedback Dashboard</h1>
+        <p class="text-lg font-light">Comparative Analysis: Term 1 (Foundation) vs. Term 3 (Growth)</p>
     </div>
-  );
 
-  const SummaryView = () => {
-    if (!analysisSummary) return null;
-
-    const { totalResponses, metricResults, likes, improvements } = analysisSummary;
-
-    return (
-      <div className="space-y-6 p-4">
-        <h2 className={`text-3xl text-center mb-6 border-b pb-4 font-bold text-${TEXT_COLOR}`}>
-          Summary Analysis: {fileName}
-        </h2>
-
-        {/* Total Responses Card (Full Width) */}
-        <div className="grid grid-cols-1">
-            <Card title="Total Responses" icon={MessageSquare}>
-                <p className="text-5xl font-black text-center pt-2 text-indigo-700">{totalResponses}</p>
-                <p className="text-sm text-center opacity-70 mt-2">students shared their feedback</p>
-            </Card>
+    <div class="mb-8">
+        <h2 class="text-xl font-semibold mb-3">Filter by Subject Focus:</h2>
+        <div id="subject-filters" class="flex flex-wrap gap-3">
+            <!-- Filter buttons will be inserted here by JavaScript -->
         </div>
-
-        {/* Key Metrics Cards (Responsive Grid Layout) */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            {Object.entries(metricResults).map(([key, result]) => (
-                <Card key={key} title={`${key} Metric`} icon={BarChart2}>
-                    <p className="text-4xl font-black text-indigo-600">{result.mode || 'N/A'}</p>
-                    <p className="text-sm opacity-70 mt-2">Most frequent response for this metric.</p>
-                </Card>
-            ))}
-        </div>
-
-        {/* Open Feedback Cards (Two-Column Layout) */}
-        <div className="grid gap-4 md:grid-cols-2">
-            <Card title="What Students Liked Most" icon={BookOpen}>
-                <ul className="list-disc pl-5 space-y-2 max-h-96 overflow-y-auto">
-                    {likes.length > 0 ? (
-                        likes.slice(0, 10).map((like, index) => <li key={index} className="opacity-90 italic">{like}</li>)
-                    ) : (
-                        <li className="opacity-70">No specific 'likes' feedback provided.</li>
-                    )}
-                </ul>
-                {likes.length > 10 && <p className="pt-2 text-sm opacity-70">... and {likes.length - 10} more comments.</p>}
-            </Card>
-
-            <Card title="Areas for Improvement" icon={Search}>
-                <ul className="list-disc pl-5 space-y-2 max-h-96 overflow-y-auto">
-                    {improvements.length > 0 ? (
-                        improvements.slice(0, 10).map((imp, index) => <li key={index} className="opacity-90 italic">{imp}</li>)
-                    ) : (
-                        <li className="opacity-70">No specific 'improvement' suggestions provided.</li>
-                    )}
-                </ul>
-                {improvements.length > 10 && <p className="pt-2 text-sm opacity-70">... and {improvements.length - 10} more suggestions.</p>}
-            </Card>
-        </div>
-      </div>
-    );
-  };
-
-  const RawDataView = () => (
-    <div className="p-4 overflow-x-auto">
-      <h2 className={`text-3xl mb-6 border-b pb-4 font-bold text-${TEXT_COLOR}`}>Raw Data Table ({data?.length} rows)</h2>
-      {data && data.length > 0 ? (
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="sticky top-0 z-10 bg-gray-50">
-            <tr>
-              {Object.keys(data[0]).map((header) => (
-                <th
-                  key={header}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"
-                >
-                  {header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 bg-white">
-            {data.slice(0, 100).map((row, rowIndex) => (
-              <tr key={rowIndex} className="hover:bg-indigo-50">
-                {Object.values(row).map((value, colIndex) => (
-                  <td
-                    key={colIndex}
-                    className="px-6 py-4 whitespace-nowrap text-sm text-gray-700"
-                  >
-                    {value}
-                  </td>
-                ))}
-              </tr>
-            ))}
-             {data.length > 100 && (
-                <tr>
-                    <td colSpan={Object.keys(data[0]).length} className="px-6 py-4 text-center text-sm italic text-gray-500">
-                        ... Showing first 100 rows only ...
-                    </td>
-                </tr>
-            )}
-          </tbody>
-        </table>
-      ) : (
-        <p className="text-xl text-center p-8 text-gray-500">No data available to display.</p>
-      )}
     </div>
-  );
-  
-  const helpContent = (
-    <div className={`mt-4 p-4 rounded-lg bg-indigo-50 border border-indigo-200 space-y-4 text-gray-700`}>
-        <h4 className={`text-xl font-bold text-${PRIMARY_ACCENT}`}>How to Use This Analyzer</h4>
-        <ul className="list-disc pl-5 space-y-2 text-base">
-            <li>Click **'Upload CSV File'** and select one of your student feedback files (e.g., from a Google Form or Survey tool).</li>
-            <li>The app will process the file, and the **Summary / Preview** tab will become active, showing key metrics like **Clarity** and **Engagement**.</li>
-            <li>The analysis works by matching common column names found in standard feedback forms.</li>
-        </ul>
-    </div>
-  );
 
-  return (
-    <div className={`min-h-screen p-2 sm:p-4 font-sans bg-${BG_COLOR}`}>
-      {/* Header Area */}
-      <header className={`text-center mb-8 border-b-2 pb-4 border-indigo-200 text-${TEXT_COLOR}`}>
-        <h1 className="text-5xl sm:text-6xl font-black tracking-tight text-indigo-700">
-          Feedback Analyzer
-        </h1>
-        <p className="text-xl mt-2 italic text-gray-600">
-          Get quick insights from your student data.
-        </p>
-      </header>
+    <!-- Main Content Grid -->
+    <div id="content-grid" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-      {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto">
-        {/* Upload and Status Bar */}
-        <div className={`flex flex-col sm:flex-row items-center justify-between p-4 mb-4 rounded-xl shadow-md bg-white border border-gray-200`}>
-          
-          <div className="flex items-center space-x-4 mb-4 sm:mb-0">
-            <label className="cursor-pointer">
-              <input type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
-              <CleanButton icon={Upload} onClick={() => document.querySelector('input[type="file"]').click()}>
-                {fileName ? `Re-upload: ${fileName}` : 'Upload CSV File'}
-              </CleanButton>
-            </label>
-            <CleanButton icon={showHelp ? ChevronUp : ChevronDown} onClick={() => setShowHelp(prev => !prev)}>
-                {showHelp ? 'Hide Help' : 'Show Help'}
-            </CleanButton>
-          </div>
-
-          <div className={`flex items-center text-lg text-right font-medium text-${TEXT_COLOR}`}>
-            {loading && (
-              <span className="flex items-center text-indigo-600">
-                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                Parsing data...
-              </span>
-            )}
-            {error && <span className="text-red-500">{error}</span>}
-            {data && !loading && !error && (
-              <span className="flex items-center text-green-600">
-                {data.length} records loaded successfully.
-              </span>
-            )}
-            {!file && !loading && !error && (
-                <span className="text-gray-500">
-                    Awaiting CSV file upload.
-                </span>
-            )}
-          </div>
-        </div>
-
-        {showHelp && helpContent}
-        
-        {/* Tabs and Analysis Area */}
-        {data && (
-          <div className="mt-8">
-            <div className="flex flex-wrap justify-center mb-6">
-              <CleanButton active={activeTab === 'summary'} onClick={() => setActiveTab('summary')} icon={BarChart2}>
-                Summary / Preview
-              </CleanButton>
-              <CleanButton active={activeTab === 'raw'} onClick={() => setActiveTab('raw')} icon={MessageSquare}>
-                Raw Data View
-              </CleanButton>
+        <!-- Column 1: Executive Summary & Strengths -->
+        <div class="lg:col-span-1 space-y-6">
+            <div id="executive-summary" class="feedback-card rounded-xl p-6">
+                <h2 class="text-2xl font-bold theme-text mb-4">Executive Summary</h2>
+                <p class="text-gray-700 leading-relaxed text-sm" id="summary-text"></p>
             </div>
 
-            <div className={`min-h-[60vh] p-4 rounded-xl shadow-xl bg-${CARD_BG} border border-indigo-100`}>
-              {activeTab === 'summary' && <SummaryView />}
-              {activeTab === 'raw' && <RawDataView />}
+            <div id="primary-strengths" class="feedback-card rounded-xl p-6">
+                <h2 class="text-2xl font-bold theme-text mb-4">Primary Strengths (Maintain)</h2>
+                <ul id="strengths-list" class="list-none space-y-3">
+                    <!-- Strengths will be inserted here -->
+                </ul>
             </div>
-          </div>
-        )}
-      </main>
-    </div>
-  );
-};
+        </div>
 
-export default App;
+        <!-- Column 2: Quantitative Metrics -->
+        <div class="lg:col-span-2">
+            <div id="metrics-comparison" class="feedback-card rounded-xl p-6">
+                <h2 class="text-2xl font-bold theme-text mb-4">Quantitative Metric Comparison (T1 vs. T3)</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full data-table text-left text-sm">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 rounded-lg">
+                            <tr>
+                                <th scope="col" class="py-3 px-6 rounded-tl-lg">Metric</th>
+                                <th scope="col" class="py-3 px-6">T1 Focus (Persona)</th>
+                                <th scope="col" class="py-3 px-6">T3 Focus (Pedagogy)</th>
+                                <th scope="col" class="py-3 px-6">Change</th>
+                                <th scope="col" class="py-3 px-6 rounded-tr-lg">Interpretation</th>
+                            </tr>
+                        </thead>
+                        <tbody id="metrics-body">
+                            <!-- Metrics will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Full-Width Row for Qualitative Themes and Optimization -->
+        <div class="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div id="qualitative-likes" class="feedback-card rounded-xl p-6">
+                <h2 class="text-2xl font-bold theme-text mb-4">Qualitative Themes: Likes (T1 vs T3)</h2>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <h3 class="font-semibold text-base mb-2 text-gray-600">Term 1 (Persona & Vibe)</h3>
+                        <ul id="t1-likes-list" class="list-disc list-inside space-y-1 text-gray-700"></ul>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-base mb-2 text-gray-600">Term 3 (Methodology & Impact)</h3>
+                        <ul id="t3-likes-list" class="list-disc list-inside space-y-1 text-gray-700"></ul>
+                    </div>
+                </div>
+                <p class="mt-4 text-xs italic text-gray-500" id="qualitative-insight"></p>
+            </div>
+
+            <div id="optimization-area" class="feedback-card rounded-xl p-6">
+                <h2 class="text-2xl font-bold theme-text mb-4">Key Area for Optimization</h2>
+                <ul id="optimization-list" class="list-none space-y-4">
+                    <!-- Optimizations will be inserted here -->
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const appBody = document.getElementById('app-body');
+        const summaryText = document.getElementById('summary-text');
+        const strengthsList = document.getElementById('strengths-list');
+        const metricsBody = document.getElementById('metrics-body');
+        const t1LikesList = document.getElementById('t1-likes-list');
+        const t3LikesList = document.getElementById('t3-likes-list');
+        const optimizationList = document.getElementById('optimization-list');
+        const subjectFilters = document.getElementById('subject-filters');
+        const qualitativeInsight = document.getElementById('qualitative-insight');
+        
+        // --- 1. DATA MODEL (Based on the analysis_report.md) ---
+
+        const analysisData = {
+            subjects: ["All Subjects", "Music", "Ako", "Digital Technology"],
+            summary: "The transition from Term 1 to Term 3 shows a highly positive trend. While baseline scores in T1 were strong, indicating a safe and comfortable learning environment, the T3 data suggests significant successful refinement of teaching methodology. Students in T3 provided more detailed and specific qualitative feedback, moving from praising the teacher's *persona* (friendly, chill, comfortable) in T1 to praising the teacher's *pedagogy* (practical application, clear alternative explanations, engaging activities) in T3. Performance across core metrics like Clarity, Support, and Environment is consistently high, suggesting robust and effective teaching.",
+            
+            metrics: [
+                { metric: "Explanation Clarity (`How clearly do I explain...`)", t1: "High", t3: "Maintained/Slightly Higher", change: "Stable/Positive", interpretation: "Explanations remain consistently high quality, likely reaching a ceiling of 'Very Clear'." },
+                { metric: "Lesson Interest (`How interesting are the lessons?`)", t1: "High", t3: "**Slight Increase**", change: "**Growth**", interpretation: "The introduction of new activities/methods (e.g., Quizlet, practicals) appears to have positively impacted overall student interest." },
+                { metric: "Use of Different Methods (`Do I use different ways...?`)", t1: "High", t3: "Maintained", change: "Stable", interpretation: "Consistent use of varied resources (videos, activities, examples) across both terms." },
+                { metric: "Engagement/Enjoyment (`Do I make learning engaging...?`)", t1: "High", t3: "Maintained/Slightly Higher", change: "Stable/Positive", interpretation: "Students consistently find the learning experience engaging and enjoyable." },
+                { metric: "Speed of Feedback (`How quickly do I give feedback...?`)", t1: "High", t3: "Maintained", change: "Stable", interpretation: "Timely feedback is a consistent strength throughout the year." },
+                { metric: "Comfort Asking for Help (`How comfortable do you feel...?`)", t1: "**Very High**", t3: "**Very High**", change: "**Strength**", interpretation: "The consistent perception of a non-scary, supportive environment is a core strength." },
+                { metric: "Safe & Heard Environment (`Do I create an environment...?`)", t1: "**Very High**", t3: "**Very High**", change: "**Strength**", interpretation: "This core strength of the classroom environment has been successfully maintained." }
+            ],
+            
+            qualitative: {
+                t1: ["The Environment: \"Chill,\" \"not a scary environment,\" \"comfortable.\"", "Relatability: \"Friendly and relatable,\" \"great to be around.\"", "Clarity/Efficiency: \"Straightforward,\" \"get what needs to be done, done.\""],
+                t3: ["Practical Application: \"How much practical time we get,\" \"practical assessments.\"", "Differentiated Support: \"Always try to see our point of views,\" \"explain it in a different way so we do understand.\"", "Engagement Methods: \"Very fun in the activities that you do,\" specifically mentioning *Quizlet* for theory."]
+            },
+
+            strengths: [
+                "Supportive Climate: The highest-rated and most consistent strength is the comfortable, safe, and helpful classroom environment.",
+                "Effective Feedback: The speed and helpfulness of feedback are consistently praised.",
+                "Differentiated Instruction: T3 students explicitly value your ability to explain concepts in multiple ways until they understand."
+            ],
+
+            optimizations: [
+                {
+                    title: "Active Group Monitoring (T3 Feedback)",
+                    description: "Address the T3 feedback regarding checking in on groups more often. This may involve implementing a structured rotation or using non-verbal signals for group needs during practical tasks.",
+                    subject_focus: {
+                        "Music": "Focus on checking in with instrumental groups (bands, composition) every 5-7 minutes during practical time.",
+                        "Ako": "Focus on checking in with students during independent goal-setting or online research tasks to ensure focus and progress.",
+                        "Digital Technology": "Focus on debugging/coding groups, especially when they hit a roadblock, to prevent long periods of stagnation.",
+                        "All Subjects": "Use the structured rotation technique."
+                    }
+                },
+                {
+                    title: "Theory Engagement & Balance (T3 Feedback)",
+                    description: "Prioritize creating and implementing more gamified/interactive methods to balance the popular practical work, leveraging the positive T3 response to Quizlet.",
+                    subject_focus: {
+                        "Music": "Create interactive rhythm/notation games (Kahoot/Quizlet) and virtual listening rooms.",
+                        "Ako": "Use structured debate or quick-fire ethical scenario discussions for theory topics.",
+                        "Digital Technology": "Implement live-coding challenges or collaborative documentation writing tasks.",
+                        "All Subjects": "Expand use of gamification for core theoretical concepts."
+                    }
+                }
+            ],
+            
+            // Insight remains constant as the overall T1->T3 observation
+            insight: "The shift indicates that the positive environment established early on allowed you to successfully implement and refine new, effective teaching strategies that students specifically recognize and value later in the year."
+        };
+
+        let currentSubject = analysisData.subjects[0]; // Default to "All Subjects"
+
+        // --- 2. RENDERING FUNCTIONS ---
+
+        function renderMetrics(metrics) {
+            metricsBody.innerHTML = metrics.map(row => {
+                return `
+                    <tr class="bg-white border-b hover:bg-gray-50 text-gray-600">
+                        <th scope="row" class="py-3 px-6 font-medium whitespace-nowrap">${row.metric}</th>
+                        <td class="py-3 px-6">${row.t1.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</td>
+                        <td class="py-3 px-6">${row.t3.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</td>
+                        <td class="py-3 px-6 text-sm">
+                            <span class="${row.change.includes('Growth') || row.change.includes('Positive') ? 'text-green-600 font-semibold' : 'text-yellow-600'}">
+                                ${row.change.replace(/\*\*(.*?)\*\*/g, '$1')}
+                            </span>
+                        </td>
+                        <td class="py-3 px-6 text-xs italic text-gray-500">${row.interpretation}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderQualitative(t1, t3, insight) {
+            t1LikesList.innerHTML = t1.map(item => `<li>${item}</li>`).join('');
+            t3LikesList.innerHTML = t3.map(item => `<li class="font-medium text-purple-700">${item}</li>`).join('');
+            qualitativeInsight.innerHTML = `**T1 → T3 Insight:** ${insight}`;
+        }
+        
+        function renderStrengths(strengths) {
+            strengthsList.innerHTML = strengths.map((s, index) => `
+                <li class="flex items-start">
+                    <span class="inline-block w-6 h-6 mr-3 rounded-full theme-bg-gradient text-white text-center flex items-center justify-center font-bold text-xs flex-shrink-0">${index + 1}</span>
+                    <p class="text-gray-700 font-medium">${s}</p>
+                </li>
+            `).join('');
+        }
+
+        function renderOptimizations(optimizations, subject) {
+            optimizationList.innerHTML = optimizations.map((opt, index) => {
+                const focus = opt.subject_focus[subject] || opt.subject_focus["All Subjects"];
+                return `
+                    <li class="border-l-4 border-r-2 p-4 rounded-lg bg-red-50/50 shadow-md transition-all duration-300">
+                        <h3 class="font-bold text-lg text-red-700 mb-2 flex items-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            ${index + 1}. ${opt.title}
+                        </h3>
+                        <p class="text-gray-700 mb-3">${opt.description}</p>
+                        <div class="p-3 mt-2 rounded-md bg-white border border-dashed theme-text font-semibold text-sm">
+                            <span class="theme-text">Subject Focus:</span> ${focus}
+                        </div>
+                    </li>
+                `;
+            }).join('');
+        }
+
+        function renderFilters(subjects) {
+            subjectFilters.innerHTML = subjects.map(subject => {
+                return `
+                    <button 
+                        data-subject="${subject}" 
+                        onclick="setSubjectFilter('${subject}')"
+                        class="px-4 py-2 rounded-full font-semibold text-sm transition-all duration-300 ease-in-out shadow-lg 
+                        ${currentSubject === subject ? 'bg-indigo-600 text-white transform scale-105' : 'bg-white text-gray-700 hover:bg-gray-100'}"
+                    >
+                        ${subject}
+                    </button>
+                `;
+            }).join('');
+        }
+
+        // --- 3. CONTROLLER / EVENT HANDLER ---
+
+        function setSubjectFilter(subject) {
+            currentSubject = subject;
+            appBody.setAttribute('data-theme', subject);
+            
+            // Re-render components that rely on the subject for styling/text
+            renderFilters(analysisData.subjects);
+            renderStrengths(analysisData.strengths);
+            renderOptimizations(analysisData.optimizations, subject);
+
+            // Update main summary and title to reflect the focus change
+            document.getElementById('header-banner').classList.add('animate-pulse');
+            setTimeout(() => {
+                document.getElementById('header-banner').classList.remove('animate-pulse');
+            }, 500);
+        }
+
+        // --- 4. INITIALIZATION ---
+
+        function initializeDashboard() {
+            summaryText.innerHTML = analysisData.summary.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            
+            // Initial render of all sections
+            renderMetrics(analysisData.metrics);
+            renderQualitative(analysisData.qualitative.t1, analysisData.qualitative.t3, analysisData.insight);
+            
+            // Initialize with default subject ("All Subjects")
+            setSubjectFilter(currentSubject); 
+        }
+
+        window.onload = initializeDashboard;
+
+    </script>
+</body>
+</html>
