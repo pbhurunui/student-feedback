@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Feedback Analysis: T1 vs. T3 2025</title>
+    <title>Data-Driven Teaching Scheme of Work (SOW)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,25 +11,24 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            /* Dynamic Color Definitions using HSL (Hue, Saturation, Lightness) */
-            /* Base Hue is a deep Teal/Blue (189) */
-            --hue-base: 189;
+            /* Classroom Theme Color Definitions */
+            --hue-base: 200; /* Deep Teal/Blue */
 
             /* Light Mode Palette */
-            --color-primary: hsl(var(--hue-base) 100% 22%); /* Deep Teal: #005f73 */
-            --color-secondary: hsl(var(--hue-base) 85% 31%); /* Darker Teal: #0a9396 */
-            --color-light-accent: hsl(var(--hue-base) 38% 70%); /* Pale Blue/Green (T1 Bar): #94d2bd */
+            --color-primary: hsl(var(--hue-base) 60% 30%); /* Deep Navy Blue */
+            --color-secondary: hsl(45 90% 60%); /* Mustard Yellow/Gold */
+            --color-light-accent: hsl(var(--hue-base) 40% 75%); /* Light Blue */
             
-            /* Danger/Warning Colors */
-            --color-danger-dark: hsl(38 100% 30%); /* Mustard Yellow/Brown: #9b6d00 */
-            --color-danger-accent: hsl(45 60% 78%); /* Light Beige (Donut Highlight): #e9d8a6 */
+            /* Danger/Warning Colors (for low scores) */
+            --color-danger-dark: hsl(15 100% 45%); /* Red-Orange */
+            --color-danger-accent: hsl(15 60% 85%); /* Light Coral */
             
             /* Backgrounds and Neutrals */
-            --color-dark: #001219;
+            --color-dark: #1f2937; /* Dark Gray */
             --color-text: var(--color-dark);
-            --color-bg: #f8f9fa; /* Off-White background */
+            --color-bg: #f5f7fa; /* Very Light Blue-Gray, like clean paper */
             --color-card-bg: white;
-            --color-shadow: rgba(0, 0, 0, 0.1);
+            --color-shadow: rgba(31, 41, 55, 0.15); /* Shadow based on dark color */
             
             transition: background-color 0.3s, color 0.3s;
         }
@@ -41,65 +40,49 @@
         }
 
         .dark-mode {
-            /* Dark Mode Palette: Adjusting Lightness (L) for contrast */
-            --color-text: #e9ecef; /* Light gray text */
-            --color-bg: #1f2937; /* Dark slate background */
-            --color-card-bg: #374151; /* Medium slate card */
-            --color-shadow: rgba(255, 255, 255, 0.1);
+            /* Dark Mode Palette: Mimics a dark screen/projector background */
+            --color-text: #e5e7eb; 
+            --color-bg: #111827; /* Dark Slate Blue */
+            --color-card-bg: #1f2937; /* Slightly lighter dark card */
+            --color-shadow: rgba(107, 114, 128, 0.2);
 
             /* Lighter colors for dark background contrast */
-            --color-primary: hsl(var(--hue-base) 80% 65%); 
-            --color-secondary: hsl(var(--hue-base) 70% 55%);
-            --color-light-accent: hsl(var(--hue-base) 50% 40%); /* Darker T1 bar, subtle */
+            --color-primary: hsl(var(--hue-base) 80% 65%); /* Brighter Teal */
+            --color-secondary: hsl(45 90% 70%); /* Brighter Mustard */
+            --color-light-accent: hsl(var(--hue-base) 40% 45%); 
 
             /* Danger/Warning Contrast */
-            --color-danger-dark: hsl(38 100% 55%); /* Brighter mustard */
-            --color-danger-accent: hsl(45 90% 85%); /* Brighter beige/yellow */
+            --color-danger-dark: hsl(15 100% 60%); 
+            --color-danger-accent: hsl(15 80% 80%);
             
-            /* Adjust border color for dark cards */
-            .kpi-card {
-                border-color: rgba(255, 255, 255, 0.1);
-            }
+            .kpi-card { border-color: rgba(255, 255, 255, 0.1); }
         }
 
         /* Animation for a flowy entrance */
         @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translate3d(0, 20px, 0);
-            }
-            to {
-                opacity: 1;
-                transform: translate3d(0, 0, 0);
-            }
+            from { opacity: 0; transform: translate3d(0, 20px, 0); }
+            to { opacity: 1; transform: translate3d(0, 0, 0); }
         }
-        .animated-section {
-            animation: fadeInUp 0.8s ease-out both;
-        }
+        .animated-section { animation: fadeInUp 0.8s ease-out both; }
 
 
         .chart-container {
             position: relative;
             width: 100%;
-            height: 45vh;
-            max-height: 500px;
+            height: 40vh;
+            max-height: 450px;
         }
-        @media (min-width: 768px) {
-            .chart-container {
-                height: 55vh;
-                max-height: 550px;
-            }
-        }
+        
         .kpi-card {
             background-color: var(--color-card-bg);
             border-radius: 0.75rem;
-            box-shadow: 0 10px 15px -3px var(--color-shadow), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 8px 15px -3px var(--color-shadow), 0 3px 6px -2px rgba(0, 0, 0, 0.05);
             transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s, color 0.3s;
-            border: 1px solid rgba(0, 0, 0, 0.05); /* Base border */
+            border: 1px solid rgba(0, 0, 0, 0.05); 
         }
         .kpi-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 25px -5px var(--color-shadow), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            transform: translateY(-3px);
+            box-shadow: 0 15px 20px -5px var(--color-shadow), 0 8px 8px -5px rgba(0, 0, 0, 0.04);
         }
         .text-primary { color: var(--color-primary); }
         .bg-primary { background-color: var(--color-primary); }
@@ -107,457 +90,658 @@
 
         .subject-button {
             padding: 0.5rem 1rem;
-            border-radius: 9999px;
+            border-radius: 0.5rem; /* Slightly less rounded for a more structured look */
             font-weight: 600;
             transition: all 0.2s;
             cursor: pointer;
             border: 2px solid var(--color-primary);
             background-color: var(--color-card-bg);
             color: var(--color-primary);
-            z-index: 10; 
-            display: inline-block !important;
         }
         .subject-button.active {
             background-color: var(--color-primary);
             color: white;
-            box-shadow: 0 4px 6px rgba(0, 95, 115, 0.3);
+            box-shadow: 0 4px 6px var(--color-shadow);
         }
-        .dark-mode .subject-button.active {
-             /* Use the lighter primary for dark mode shadow */
-             box-shadow: 0 4px 6px var(--color-primary);
+        
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(var(--color-bg), 0.95);
+            backdrop-filter: blur(3px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            transition: opacity 0.5s ease;
+        }
+        .spinner {
+            border: 8px solid var(--color-light-accent);
+            border-top: 8px solid var(--color-secondary); /* Highlighted top */
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .scheme-header {
+            border-bottom: 3px solid var(--color-secondary); /* Accent line */
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+            font-size: 1.875rem; /* text-3xl */
+            font-weight: 800;
+        }
+        /* SOW Step style: mimics a notebook margin */
+        .plan-step {
+            border-left: 6px solid var(--color-secondary); 
+            padding-left: 1.5rem;
+            transition: border-color 0.3s;
+        }
+        .low-score-highlight {
+            color: var(--color-danger-dark);
+            font-weight: bold;
+        }
+        .bg-accent-soft {
+            background-color: hsl(45 90% 90%); /* Very light mustard for contrast */
+        }
+        .dark-mode .bg-accent-soft {
+            background-color: #374151; /* Darker gray for dark mode contrast */
         }
     </style>
 </head>
 <body class="text-dark">
+    <!-- Loading Overlay -->
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <p id="loading-text" class="mt-4 text-xl font-semibold text-primary">Loading Data and Analyzing Feedback for SOW...</p>
+    </div>
 
-    <header class="bg-primary text-white py-8 text-center relative">
+    <header class="bg-primary text-white py-10 text-center relative shadow-lg">
         <div class="container mx-auto px-4">
             
-            <!-- Mode Selector Only -->
             <div class="absolute top-4 right-4 flex space-x-2 items-center">
                 <button id="modeToggle" onclick="toggleLightDark()" class="p-2 rounded-full bg-white/20 hover:bg-white/30 transition duration-300">
                     <span id="modeIcon" class="text-xl">🌙</span>
                 </button>
             </div>
             
-            <h1 class="text-4xl md:text-5xl font-bold mb-2">Student Feedback Analysis</h1>
-            <p class="text-xl md:text-2xl font-light">Comparing Term 1 vs. Term 3 (2025)</p>
+            <h1 class="text-4xl md:text-5xl font-extrabold mb-2 uppercase tracking-wider text-secondary">School Data Hub</h1>
+            <p class="text-xl md:text-2xl font-light text-white/90">Term 4 Scheme of Work: Translating Data into Actionable Teaching</p>
         </div>
     </header>
 
-    <main class="container mx-auto p-4 md:p-8">
+    <main class="container mx-auto p-4 md:p-8 hidden" id="main-content">
         
-        <section id="kpi-dashboard" class="mb-16 animated-section" style="animation-delay: 0.2s;">
-            <div class="text-center mb-8 max-w-3xl mx-auto">
-                <h2 class="text-3xl font-bold text-primary mb-3">Key Performance Snapshot: The Grouped Bar Chart</h2>
-                <!-- Subject Filter -->
+        <section id="sow-overview" class="mb-12 animated-section" style="animation-delay: 0.2s;">
+            <div class="kpi-card p-6 md:p-8">
+                <h2 class="scheme-header text-primary">I. Performance Comparison & Focused Objective</h2>
+                
                 <div id="subject-selector" class="flex justify-center flex-wrap gap-4 mb-6">
                     <!-- Buttons will be injected here by JavaScript -->
                 </div>
-                <p id="kpi-description" class="text-lg text-gray-500 dark:text-gray-300">Viewing **Overall** results. The chart visually compares your performance across five core dimensions in T1 (lighter color) vs. T3 (darker color). Notice the major success in **Feeling Safe & Heard (100%)** and **Clarity (89%)**, but a sharp contraction in **Interest (down to 56%)** now flags the most critical area for immediate attention.</p>
-            </div>
-            <div class="kpi-card p-4 md:p-8">
-                <div class="chart-container max-w-5xl mx-auto">
-                    <canvas id="kpiComparisonChart"></canvas>
-                </div>
-            </div>
-        </section>
-        
-        <section id="qualitative-composition" class="mb-16 animated-section" style="animation-delay: 0.4s;">
-            <div class="text-center mb-8 max-w-3xl mx-auto">
-                <h2 class="text-3xl font-bold text-secondary mb-3">Qualitative Feedback Composition (Overall T3)</h2>
-                <p class="text-lg text-gray-500 dark:text-gray-300">This **Donut Chart** shows the breakdown of all open-ended comments (Overall T3). The proportion of **Improvement** comments has increased, reinforcing the need to address the drop in lesson interest and engagement.</p>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
-                <div class="kpi-card p-6 md:p-8 col-span-1 chart-container">
-                    <canvas id="commentDonutChart"></canvas>
-                </div>
-                <div class="md:col-span-2 space-y-4">
-                    <!-- Note: text-secondary class now uses dynamic secondary color -->
-                    <div class="kpi-card p-6 border-l-4 text-primary border-secondary dark:border-secondary">
-                        <p class="text-2xl font-bold text-secondary">67% Positive</p>
-                        <p class="text-gray-600 dark:text-gray-300">Comments focused on strengths: supportive environment, approachability, and successful practical activities.</p>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <div class="lg:col-span-2">
+                        <p class="text-lg text-gray-600 dark:text-gray-300 mb-4">
+                            The bar chart compares student perceptions (Favorable Rate) from **Term 1 (Light Blue)** to **Term 3 (Navy Blue)**, highlighting the weakest KPI in **Red-Orange**.
+                        </p>
+                        <div class="chart-container max-w-4xl mx-auto">
+                            <canvas id="kpiComparisonChart"></canvas>
+                        </div>
                     </div>
-                    <!-- Note: text-[#9b6d00] replaced with dynamic danger-dark color -->
-                    <div class="kpi-card p-6 border-l-4 border-danger-dark dark:border-danger-dark">
-                        <p class="text-2xl font-bold text-danger-dark">33% Improvement</p>
-                        <p class="text-gray-600 dark:text-gray-300">Comments focused on actionable areas: primarily lesson **engagement**, instructional pacing, and feedback clarity on grading.</p>
+                    
+                    <div class="lg:col-span-1 p-4 rounded-xl bg-accent-soft">
+                        <h3 class="text-2xl font-bold text-primary mb-4">Focus Area for Term 4</h3>
+                        <div id="focus-summary">
+                            <p class="text-lg text-gray-700 dark:text-gray-300">Select a subject to analyze its weakest performance metric and generate a focus objective.</p>
+                        </div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- ACTION PLAN SECTION - Content is now dynamic -->
-        <section id="action-plan" class="animated-section" style="animation-delay: 0.6s;">
-            <div class="text-center mb-8">
-                <h2 class="text-3xl font-bold text-primary mb-3">Actionable Next Steps (Targeted Strategies)</h2>
-                <p class="text-lg text-gray-500 dark:text-gray-300 max-w-3xl mx-auto">Translate data into deliberate practice using three targeted strategies for the next term.</p>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <!-- Action 1 -->
-                <div class="kpi-card p-6 text-center group animated-section" style="animation-delay: 0.8s;">
-                    <div class="mx-auto bg-primary text-white w-16 h-16 rounded-full flex items-center justify-center mb-4 transition duration-300 group-hover:scale-110">
-                        <span class="text-3xl font-bold">1</span>
+        <!-- SOW Unit Plan and Qualitative Feedback Section -->
+        <section id="sow-plan" class="mb-12 animated-section" style="animation-delay: 0.4s;">
+            <div class="kpi-card p-6 md:p-8">
+                <h2 class="scheme-header text-primary">II. Term 4 Data-Driven Unit Plan</h2>
+
+                <div id="sow-plan-content" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    
+                    <!-- Left: Generated SOW Plan -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <h3 class="text-2xl font-extrabold text-secondary mb-4" id="unit-title-display">Unit Plan: (Select Subject Above)</h3>
+                        
+                        <div class="plan-step p-4 pl-6 space-y-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                            <p class="text-sm font-bold uppercase text-primary">Focus KPI (Lowest Score / Largest Drop):</p>
+                            <p class="text-lg" id="sow-focus-kpi">...</p>
+                        </div>
+                        
+                        <div class="plan-step p-4 pl-6 space-y-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                            <p class="text-sm font-bold uppercase text-primary">Key Teaching Objective:</p>
+                            <p class="text-lg" id="sow-objective">...</p>
+                        </div>
+                        
+                        <div class="plan-step p-4 pl-6 space-y-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                            <p class="text-sm font-bold uppercase text-primary">Suggested Activity / Strategy:</p>
+                            <p class="text-lg" id="sow-activity">...</p>
+                        </div>
+                        
+                        <div class="plan-step p-4 pl-6 space-y-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                            <p class="text-sm font-bold uppercase text-primary">Success Metric (Target for next Term):</p>
+                            <p class="text-lg" id="sow-metric">...</p>
+                        </div>
                     </div>
-                    <h3 id="action-title-1" class="text-xl font-bold mb-2 text-primary">Priority: Boost Engagement</h3>
-                    <p id="action-desc-1" class="text-gray-600 dark:text-gray-300">Designate specific activities to make "boring tasks seem engaging" by integrating more variety, technology, or creative practical applications.</p>
-                </div>
-                <!-- Action 2 -->
-                <div class="kpi-card p-6 text-center group animated-section" style="animation-delay: 1.0s;">
-                     <div class="mx-auto bg-secondary text-white w-16 h-16 rounded-full flex items-center justify-center mb-4 transition duration-300 group-hover:scale-110">
-                        <span class="text-3xl font-bold">2</span>
+
+                    <!-- Right: Qualitative Feedback Analysis -->
+                    <div class="lg:col-span-1 bg-accent-soft p-6 rounded-xl space-y-4">
+                        <h3 class="text-2xl font-bold text-primary">III. Student Voice: Improvement Suggestions</h3>
+                        
+                        <div class="bg-primary/10 dark:bg-gray-700 p-3 rounded-lg border-l-4 border-primary">
+                            <p class="text-lg font-bold text-primary">Core Theme:</p>
+                            <p class="text-md text-gray-700 dark:text-gray-300" id="sow-qualitative-theme">...</p>
+                        </div>
+
+                        <p class="text-sm font-semibold mt-4 text-gray-600 dark:text-gray-300">Raw Feedback Points:</p>
+                        <ul id="improvement-list" class="list-disc pl-5 space-y-1 text-sm text-gray-700 dark:text-gray-400">
+                            <li>Feedback will appear here...</li>
+                        </ul>
                     </div>
-                    <h3 id="action-title-2" class="text-xl font-bold mb-2 text-primary">Focus: Pacing Control</h3>
-                    <p id="action-desc-2" class="text-gray-600 dark:text-gray-300">Continue to check for understanding, but ensure specific topics that students found challenging ("certain days, certain topics") are slowed down and reinforced.</p>
-                </div>
-                <!-- Action 3 -->
-                <div class="kpi-card p-6 text-center group animated-section" style="animation-delay: 1.2s;">
-                     <div class="mx-auto bg-light-accent text-primary w-16 h-16 rounded-full flex items-center justify-center mb-4 transition duration-300 group-hover:scale-110">
-                        <span class="text-3xl font-bold">3</span>
-                    </div>
-                    <h3 id="action-title-3" class="text-xl font-bold mb-2 text-primary">Focus: Feedback Clarity</h3>
-                    <p id="action-desc-3" class="text-gray-600 dark:text-gray-300">Ensure feedback not only covers what was done, but explicitly details **"what you need to do"** next regarding grading and success criteria.</p>
                 </div>
             </div>
         </section>
+        
     </main>
-    
-    <footer class="text-center py-8 mt-12 bg-gray-200 dark:bg-gray-700">
-        <p class="text-gray-600 dark:text-gray-300">Infographic generated for performance review and planning.</p>
-    </footer>
 
-    <script>
-        // Removed THEMES object
-        
-        // --- Subject-Specific Data Structure with Action Plans ---
-        // Favorable Rates (%) for T1 vs T3 in the order: [Clarity, Interest, Comfort, Feedback Speed, Safe & Heard]
-        const ALL_DATA = {
-            'Overall': {
-                T1: [89, 89, 89, 67, 100],
-                T3: [89, 56, 89, 89, 100],
-                description: "The chart visually compares your performance across five core dimensions in T1 (lighter color) vs. T3 (darker color). Notice the major success in **Feeling Safe & Heard (100%)** and **Clarity (89%)**, but a sharp contraction in **Interest (down to 56%)** now flags the most critical area for immediate attention.",
-                actionPlan: {
-                    1: { title: 'Priority: Boost Engagement', description: 'Designate specific activities to make "boring tasks seem engaging" by integrating more variety, technology, or creative practical applications.' },
-                    2: { title: 'Focus: Pacing Control', description: 'Continue to check for understanding, but ensure specific topics that students found challenging ("certain days, certain topics") are slowed down and reinforced.' },
-                    3: { title: 'Focus: Feedback Clarity', description: 'Ensure feedback not only covers what was done, but explicitly details **"what you need to do"** next regarding grading and success criteria.' }
-                }
-            },
-            'Music': {
-                T1: [92, 92, 92, 62, 100],
-                T3: [83, 50, 83, 83, 100],
-                description: "Viewing **Music** results. The chart visually compares your performance across five core dimensions in T1 (lighter color) vs. T3 (darker color). The drop in **Lesson Interest** from 92% to **50%** is particularly stark here, while **Feedback Speed** significantly improved from 62% to 83%.",
-                actionPlan: {
-                    1: { title: 'Priority: Increase Practical Application', description: 'Focus on project-based learning and practical skills that align with student interests to counter the sharp drop in engagement (92% to 50%).' },
-                    2: { title: 'Focus: Vary Theory Instruction', description: 'Address feedback about "certain topics" being slow by using more diverse methods (simulations, group study) to reinforce music theory concepts.' },
-                    3: { title: 'Sustain: Clear Feedback Speed', description: 'Maintain the high 83% favorable rate for feedback speed, ensuring students know *exactly* what criteria were used in grading.' }
-                }
-            },
-            'Ako': {
-                T1: [100, 75, 100, 100, 100],
-                T3: [100, 50, 100, 100, 100],
-                description: "Viewing **Ako** results. The chart visually compares your performance across five core dimensions in T1 (lighter color) vs. T3 (darker color). All KPIs remain excellent except for **Lesson Interest**, which fell from 75% to **50%**, indicating a need for more engaging content.",
-                actionPlan: {
-                    1: { title: 'Priority: Define Purpose & Relevance', description: 'Explicitly explain the learning goals and real-world relevance of every Ako activity to address the comment "You don\'t teach me so I\'m not sure."' },
-                    2: { title: 'Focus: Introduce New Activities', description: 'Integrate new group challenges or social-emotional learning activities to re-boost interest, which dropped 25 percentage points.' },
-                    3: { title: 'Sustain: Positive Environment', description: 'Maintain the 100% scores across Clarity, Comfort, and Safety to ensure the class remains a highly trusted and secure space.' }
-                }
-            },
-            'Digital Technology': {
-                T1: [0, 100, 0, 0, 100], 
-                T3: [100, 50, 100, 50, 50],
-                description: "Viewing **Digital Technology** results. The chart visually compares your performance across five core dimensions in T1 (lighter color) vs. T3 (darker color). Note the high volatility due to low sample size (N=1 in T1, N=2 in T3). **Safe & Heard** dropped to 50% and **Interest** fell to 50%.",
-                actionPlan: {
-                    1: { title: 'Immediate: Safe & Heard Check-in', description: 'Address the 50% drop in Feeling Safe & Heard immediately with an anonymous feedback opportunity and 1:1 check-ins to rebuild trust.' },
-                    2: { title: 'Priority: Project-Based Interest', description: 'Restore Lesson Interest (down to 50%) by introducing an exciting, student-choice, project-based unit focused on modern tech tools.' },
-                    3: { title: 'Focus: Clear Feedback Loop', description: 'Use the improvement in Clarity (up to 100%) to provide a structured, easy-to-follow process for submitting work and receiving constructive feedback.' }
-                }
-            }
+    <script type="module">
+        // Global Constants
+        const T1_FILE = "Student Feedback 2025 T1 (Responses) - Form responses 1.csv";
+        const T3_FILE = "Student Feedback 2025 T3 (Responses) - Form responses 1.csv";
+        const KPI_MAPPING = {
+            'Clarity': { index: 2, positive: ['Very Clear', 'Clear'] },
+            'Interest': { index: 3, positive: ['Very Interesting', 'Interesting'] },
+            'Variety': { index: 4, positive: ['Always', 'Often'] },
+            'Participation': { index: 5, positive: ['Always', 'Often'] },
+            'Engagement': { index: 7, positive: ['A Lot', 'Often'] },
         };
-
-        let currentSubject = 'Overall';
-        let kpiChartInstance = null;
-        let donutChartInstance = null;
+        const IMPROVEMENT_COLUMN_INDEX = 13; // 'What do you think could be improved about how I teach?'
+        const SUBJECT_COLUMN_INDEX = 1; // 'What do I teach you?'
+        const LLM_MODEL = 'gemini-2.5-flash-preview-05-20';
+        const apiKey = "";
+        
+        let allData = {}; // Stores all processed data: { subject: { T1: { KPI: score, count }, T3: { ... }, qualitative: [...] } }
+        let kpiChart;
         
         // --- Utility Functions ---
 
-        function getCssVar(name) {
-            // Function adjusted to get CSS variable dynamically
-            return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-        }
-
-        // Removed setTheme function
-
-        function toggleLightDark() {
-            const body = document.body;
-            body.classList.toggle('dark-mode');
-            const isDarkMode = body.classList.contains('dark-mode');
-            document.getElementById('modeIcon').textContent = isDarkMode ? '☀️' : '🌙';
-
-            // Re-render charts to pick up new dynamic colors from CSS variables
-            renderCharts();
-        }
-
-        function wrapLabel(str, maxWidth) {
-            if (str.length <= maxWidth) {
-                return str;
-            }
-            const words = str.split(' ');
-            let lines = [];
-            let currentLine = words[0];
-
-            for (let i = 1; i < words.length; i++) {
-                if ((currentLine + ' ' + words[i]).length > maxWidth) {
-                    lines.push(currentLine);
-                    currentLine = words[i];
-                } else {
-                    currentLine += ' ' + words[i];
+        /**
+         * Parses a CSV string into an array of objects.
+         * @param {string} csvText - The raw CSV text.
+         * @returns {{headers: string[], rows: string[][]}}
+         */
+        function parseCSV(csvText) {
+            const lines = csvText.trim().split('\n');
+            if (lines.length === 0) return { headers: [], rows: [] };
+            
+            // Simple split by comma, ignoring quotes for simplicity given the data structure
+            const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+            const rows = lines.slice(1).map(line => {
+                // Handle commas inside quotes for a slightly better split
+                const regex = /(?:^|,)(\"(?:[^\"]+|\"\")*\"|[^,]*)/g;
+                let match;
+                let row = [];
+                while (match = regex.exec(line)) {
+                    // Remove leading comma, trim and remove surrounding quotes
+                    let value = match[1];
+                    if (value.startsWith(',')) value = value.substring(1);
+                    value = value.trim().replace(/^"|"$/g, '').replace(/""/g, '"');
+                    row.push(value);
                 }
-            }
-            lines.push(currentLine);
-            return lines;
-        }
-        
-        // --- Action Plan Update Logic ---
-        function updateActionPlan() {
-            const subjectData = ALL_DATA[currentSubject];
-            if (!subjectData || !subjectData.actionPlan) return;
-
-            const plan = subjectData.actionPlan;
-
-            for (let i = 1; i <= 3; i++) {
-                const titleElement = document.getElementById(`action-title-${i}`);
-                const descElement = document.getElementById(`action-desc-${i}`);
-
-                if (titleElement) titleElement.textContent = plan[i].title;
-                if (descElement) descElement.textContent = plan[i].description;
-            }
-        }
-
-        // --- Subject Selector Logic ---
-
-        function setSubject(subjectName) {
-            currentSubject = subjectName;
+                return row;
+            }).filter(row => row.length > 0);
             
-            // 1. Update active state of buttons
-            const buttons = document.querySelectorAll('#subject-selector .subject-button');
-            buttons.forEach(button => {
-                button.classList.remove('active');
-                if (button.dataset.subject === subjectName) {
-                    button.classList.add('active');
+            return { headers, rows };
+        }
+
+        /**
+         * Fetches data for a given filename.
+         * @param {string} filename - The name of the file to fetch.
+         * @returns {Promise<string[][]>} - Promise resolving to array of data rows (excluding header).
+         */
+        async function loadCSV(filename) {
+            try {
+                // Since files are loaded via Canvas, we use a relative path based on the accessible filename.
+                const response = await fetch(`./${filename}`);
+                if (!response.ok) {
+                    throw new Error(`Failed to load file: ${response.statusText}`);
                 }
-            });
-
-            // 2. Update description text
-            const descElement = document.getElementById('kpi-description');
-            if (ALL_DATA[subjectName]) {
-                descElement.innerHTML = ALL_DATA[subjectName].description;
-            } else {
-                descElement.textContent = ALL_DATA['Overall'].description;
+                const csvText = await response.text();
+                const { rows } = parseCSV(csvText);
+                return rows;
+            } catch (error) {
+                console.error(`Error loading CSV file ${filename}:`, error);
+                // Return empty array on failure
+                return [];
             }
-            
-            // 3. Update the charts
-            renderCharts();
-
-            // 4. Update the Action Plan
-            updateActionPlan();
         }
 
-        function initializeSubjectSelector() {
-            const selectorDiv = document.getElementById('subject-selector');
-            
-            if (!selectorDiv) {
-                console.error("The subject-selector div was not found in the DOM.");
-                return; 
-            }
+        /**
+         * Processes raw feedback rows to calculate KPI scores and extract qualitative comments.
+         * @param {string[][]} t1Data 
+         * @param {string[][]} t3Data 
+         * @returns {Object} Processed data object.
+         */
+        function processFeedback(t1Data, t3Data) {
+            const data = {};
 
-            const subjects = Object.keys(ALL_DATA);
+            const processTerm = (rows, term) => {
+                rows.forEach(row => {
+                    const subjects = row[SUBJECT_COLUMN_INDEX].split(',').map(s => s.trim()).filter(s => s);
+                    
+                    subjects.forEach(subject => {
+                        if (!data[subject]) {
+                            data[subject] = { T1: {}, T3: {}, qualitative: [] };
+                        }
 
-            subjects.forEach(subject => {
-                const button = document.createElement('button');
-                button.textContent = subject;
-                button.classList.add('subject-button');
-                button.dataset.subject = subject;
-                button.onclick = () => setSubject(subject);
-                selectorDiv.appendChild(button);
-            });
-            
-            // Set initial active state and render all content to 'Overall'
-            setSubject('Overall');
-        }
+                        // Calculate KPI scores
+                        Object.entries(KPI_MAPPING).forEach(([kpi, { index, positive }]) => {
+                            const response = row[index];
+                            const isPositive = positive.includes(response);
+                            
+                            if (!data[subject][term][kpi]) {
+                                data[subject][term][kpi] = { favorable: 0, total: 0 };
+                            }
 
-        // --- Chart Creation Functions ---
+                            if (response) {
+                                data[subject][term][kpi].total++;
+                                if (isPositive) {
+                                    data[subject][term][kpi].favorable++;
+                                }
+                            }
+                        });
 
-        function createComparisonChart(ctx) {
-            // Colors are fetched dynamically based on current mode (light or dark)
-            const secondaryColor = getCssVar('--color-secondary');
-            const lightAccentColor = getCssVar('--color-light-accent');
-            const globalFontColor = document.body.classList.contains('dark-mode') ? '#e9ecef' : '#4A5568';
-            
-            const subjectData = ALL_DATA[currentSubject] || ALL_DATA['Overall'];
-            
-            const kpiData = {
-                labels: [
-                    wrapLabel('Lesson Clarity', 16),
-                    wrapLabel('Lesson Interest', 16),
-                    wrapLabel('Comfort Asking Help', 16),
-                    wrapLabel('Feedback Speed', 16),
-                    wrapLabel('Feeling Safe & Heard', 16)
-                ],
-                datasets: [
-                    {
-                        label: 'Term 1 Favorable Rate (%)',
-                        data: subjectData.T1, 
-                        backgroundColor: lightAccentColor, 
-                        borderColor: lightAccentColor,
-                        borderWidth: 1,
-                        borderRadius: 4
-                    },
-                    {
-                        label: 'Term 3 Favorable Rate (%)',
-                        data: subjectData.T3, 
-                        backgroundColor: secondaryColor,
-                        borderColor: secondaryColor, 
-                        borderWidth: 1,
-                        borderRadius: 4
-                    }
-                ]
+                        // Extract qualitative feedback for Term 3 only
+                        if (term === 'T3' && row[IMPROVEMENT_COLUMN_INDEX]) {
+                            const comment = row[IMPROVEMENT_COLUMN_INDEX].trim();
+                            if (comment.toLowerCase() !== 'nothing' && comment.toLowerCase() !== 'no' && comment.toLowerCase() !== '-' && comment) {
+                                data[subject].qualitative.push(comment);
+                            }
+                        }
+                    });
+                });
             };
 
-            return new Chart(ctx, {
+            processTerm(t1Data, 'T1');
+            processTerm(t3Data, 'T3');
+
+            // Convert raw counts to percentage scores
+            Object.values(data).forEach(subjectData => {
+                ['T1', 'T3'].forEach(term => {
+                    Object.entries(subjectData[term]).forEach(([kpi, counts]) => {
+                        const score = counts.total > 0 ? Math.round((counts.favorable / counts.total) * 100) : 0;
+                        subjectData[term][kpi] = score;
+                    });
+                });
+            });
+
+            return data;
+        }
+
+        /**
+         * Analyzes KPI scores to find the weakest area for a given subject.
+         * @param {Object} subjectData - The T1 and T3 scores for one subject.
+         * @returns {{focusKPI: string, t3Score: number, t1Score: number}}
+         */
+        function getWeakestKPI(subjectData) {
+            let focusKPI = '';
+            let lowestScore = 101;
+            let largestDrop = 0;
+            let focusT1Score = 0;
+            let focusT3Score = 0;
+
+            Object.entries(subjectData.T3).forEach(([kpi, t3Score]) => {
+                const t1Score = subjectData.T1[kpi] || 0;
+                
+                // 1. Check for lowest current score (primary focus)
+                if (t3Score < lowestScore) {
+                    lowestScore = t3Score;
+                    focusKPI = kpi;
+                    focusT1Score = t1Score;
+                    focusT3Score = t3Score;
+                } 
+                // 2. Check for largest drop (secondary tie-breaker/critical area)
+                const drop = t1Score - t3Score;
+                if (drop > largestDrop && t3Score === lowestScore) { // Prioritize drop if scores are tied for lowest
+                    largestDrop = drop;
+                    focusKPI = kpi;
+                    focusT1Score = t1Score;
+                    focusT3Score = t3Score;
+                } else if (drop > largestDrop && focusKPI === '') { // If initial KPI hasn't been set, prioritize drop
+                     largestDrop = drop;
+                     focusKPI = kpi;
+                     focusT1Score = t1Score;
+                     focusT3Score = t3Score;
+                }
+            });
+
+            return { focusKPI, t3Score: focusT3Score, t1Score: focusT1Score };
+        }
+
+        // --- UI and Data Visualization ---
+
+        function drawChart(subjectData, subjectName) {
+            const ctx = document.getElementById('kpiComparisonChart').getContext('2d');
+            const kpis = Object.keys(KPI_MAPPING);
+            const t1Data = kpis.map(kpi => subjectData.T1[kpi]);
+            const t3Data = kpis.map(kpi => subjectData.T3[kpi]);
+
+            const weakest = getWeakestKPI(subjectData);
+
+            // Get computed colors to handle dark mode switch
+            const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim();
+            const lightAccentColor = getComputedStyle(document.documentElement).getPropertyValue('--color-light-accent').trim();
+            const dangerDarkColor = getComputedStyle(document.documentElement).getPropertyValue('--color-danger-dark').trim();
+
+
+            if (kpiChart) {
+                kpiChart.destroy();
+            }
+
+            kpiChart = new Chart(ctx, {
                 type: 'bar',
-                data: kpiData,
+                data: {
+                    labels: kpis,
+                    datasets: [
+                        {
+                            label: 'Term 1 Favorable Rate (%)',
+                            data: t1Data,
+                            backgroundColor: lightAccentColor,
+                            borderRadius: 4,
+                        },
+                        {
+                            label: 'Term 3 Favorable Rate (%)',
+                            data: t3Data,
+                            backgroundColor: t3Data.map((score, index) => {
+                                // Highlight the lowest scoring KPI
+                                if (kpis[index] === weakest.focusKPI) {
+                                    return dangerDarkColor;
+                                }
+                                return primaryColor;
+                            }),
+                            borderRadius: 4,
+                        }
+                    ]
+                },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    barPercentage: 0.8,
-                    categoryPercentage: 0.8,
-                    scales: {
-                        x: {
-                            grid: { display: false },
-                            ticks: { color: globalFontColor, font: { size: 14, weight: '600' } }
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `${subjectName} KPI Performance: Term 1 vs Term 3 (Favorable Rate %)`,
+                            color: getComputedStyle(document.body).color
                         },
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                color: getComputedStyle(document.body).color
+                            }
+                        },
+                    },
+                    scales: {
                         y: {
-                            min: 0,
+                            beginAtZero: true,
                             max: 100,
-                            stepSize: 10,
                             title: {
                                 display: true,
                                 text: 'Favorable Rate (%)',
-                                color: globalFontColor
+                                color: getComputedStyle(document.body).color
                             },
-                            grid: { color: globalFontColor + '40' },
-                            ticks: { 
-                                color: globalFontColor + '80',
-                                callback: function(value) {
-                                    return value + '%'; // Add percentage sign
-                                }
+                            ticks: {
+                                color: getComputedStyle(document.body).color
+                            },
+                            grid: {
+                                color: 'rgba(150, 150, 150, 0.2)'
                             }
-                        }
-                    },
-                    plugins: {
-                        legend: { position: 'top', labels: { font: { size: 14 }, color: globalFontColor } },
-                        tooltip: {
-                            backgroundColor: getCssVar('--color-dark'),
-                            titleFont: { size: 16 },
-                            bodyFont: { size: 14 },
-                            callbacks: {
-                                title: function(tooltipItems) {
-                                    const item = tooltipItems[0];
-                                    let label = item.chart.data.labels[item.dataIndex];
-                                    if (Array.isArray(label)) { return label.join(' '); } else { return label; }
-                                },
-                                label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) { label += ': '; }
-                                    if (context.parsed.y !== null) { label += context.parsed.y + '%'; }
-                                    return label;
-                                }
+                        },
+                        x: {
+                            ticks: {
+                                color: getComputedStyle(document.body).color
+                            },
+                            grid: {
+                                color: 'rgba(150, 150, 150, 0.2)'
                             }
                         }
                     }
                 }
             });
+
+            // Update Focus Summary
+            const drop = weakest.t1Score - weakest.t3Score;
+            const dropClass = drop > 0 ? 'low-score-highlight' : 'text-green-500';
+            const dropSign = drop > 0 ? '-' : (drop < 0 ? '+' : '');
+
+            document.getElementById('focus-summary').innerHTML = `
+                <p class="text-xl font-bold mb-2 text-primary">Focus KPI: <span class="low-score-highlight">${weakest.focusKPI}</span></p>
+                <div class="space-y-1">
+                    <p class="text-lg text-gray-800 dark:text-gray-200">Term 3 Score: <span class="font-extrabold text-2xl low-score-highlight">${weakest.t3Score}%</span></p>
+                    <p class="text-lg text-gray-600 dark:text-gray-400">Term 1 Score: <span class="font-semibold">${weakest.t1Score}%</span></p>
+                    <p class="text-lg text-gray-800 dark:text-gray-200">Change: <span class="font-bold ${dropClass}">${dropSign}${Math.abs(drop)}pp</span></p>
+                </div>
+                <button onclick="triggerSOWGeneration('${subjectName}')" class="mt-4 w-full bg-secondary text-primary py-2 rounded-lg font-bold hover:bg-opacity-80 transition duration-200 shadow-md">
+                    Generate Term 4 Unit Plan
+                </button>
+            `;
         }
 
-        function createDonutChart(ctx) {
-             const secondaryColor = getCssVar('--color-secondary');
-             const dangerAccentColor = getCssVar('--color-danger-accent');
-             const primaryColor = getCssVar('--color-primary');
-             const dangerDarkColor = getCssVar('--color-danger-dark');
-             const cardBgColor = getCssVar('--color-card-bg');
-             
-             const donutData = {
-                labels: ['Positive/Working Well', 'Improvements/Suggestions'],
-                datasets: [{
-                    data: [67, 33],
-                    backgroundColor: [
-                        secondaryColor, 
-                        dangerAccentColor 
-                    ],
-                    hoverBackgroundColor: [
-                        primaryColor,
-                        dangerDarkColor
-                    ],
-                    borderWidth: 2,
-                    borderColor: cardBgColor // Use dynamic card BG color for the border
-                }]
-            };
+        function renderSubjectSelector(subjects) {
+            const selector = document.getElementById('subject-selector');
+            selector.innerHTML = subjects.map(subject => `
+                <button class="subject-button" data-subject="${subject}" onclick="selectSubject('${subject}')">
+                    ${subject}
+                </button>
+            `).join('');
+            
+            // Auto-select the first subject
+            if (subjects.length > 0) {
+                selectSubject(subjects[0]);
+            }
+        }
 
-            const globalFontColor = document.body.classList.contains('dark-mode') ? '#e9ecef' : '#4A5568';
-
-            return new Chart(ctx, {
-                type: 'doughnut',
-                data: donutData,
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '70%',
-                    plugins: {
-                        legend: { position: 'bottom', labels: { font: { size: 14 }, color: globalFontColor } },
-                        tooltip: {
-                            backgroundColor: getCssVar('--color-dark'),
-                            titleFont: { size: 16 },
-                            bodyFont: { size: 14 },
-                            callbacks: {
-                                title: function(tooltipItems) {
-                                    const item = tooltipItems[0];
-                                    let label = item.chart.data.labels[item.dataIndex];
-                                    if (Array.isArray(label)) { return label.join(' '); } else { return label; }
-                                },
-                                label: function(context) {
-                                    let label = context.label || '';
-                                    if (label) { label += ': '; }
-                                    if (context.parsed !== null) { label += context.parsed + '%'; }
-                                    return label;
-                                }
-                            }
-                        }
-                    }
-                }
+        function selectSubject(subjectName) {
+            document.querySelectorAll('.subject-button').forEach(btn => {
+                btn.classList.remove('active');
             });
+            document.querySelector(`[data-subject="${subjectName}"]`).classList.add('active');
+            
+            const subjectData = allData[subjectName];
+            drawChart(subjectData, subjectName);
+            
+            // Clear SOW content on subject change
+            document.getElementById('unit-title-display').innerText = `Unit Plan: ${subjectName}`;
+            document.getElementById('sow-focus-kpi').innerText = 'Select "Generate Term 4 Unit Plan" to create the SOW.';
+            document.getElementById('sow-objective').innerText = '...';
+            document.getElementById('sow-activity').innerText = '...';
+            document.getElementById('sow-metric').innerText = '...';
+            document.getElementById('sow-qualitative-theme').innerText = '...';
+            document.getElementById('improvement-list').innerHTML = `<li>${subjectData.qualitative.length > 0 ? 'Click "Generate" to analyze the student comments.' : 'No improvement suggestions provided for this subject.'}</li>`;
         }
 
-        // --- Main Render Function ---
+        // --- Gemini API Integration ---
 
-        function renderCharts() {
-            if (kpiChartInstance) kpiChartInstance.destroy();
-            if (donutChartInstance) donutChartInstance.destroy();
+        async function callGeminiApi(payload) {
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${LLM_MODEL}:generateContent?key=${apiKey}`;
+            const MAX_RETRIES = 3;
+            let delay = 1000;
 
-            const kpiCtx = document.getElementById('kpiComparisonChart').getContext('2d');
-            kpiChartInstance = createComparisonChart(kpiCtx);
+            for (let i = 0; i < MAX_RETRIES; i++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (!response.ok) {
+                        if (response.status === 429 && i < MAX_RETRIES - 1) {
+                            console.log(`Rate limit exceeded. Retrying in ${delay / 1000}s...`);
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            delay *= 2; // Exponential backoff
+                            continue;
+                        }
+                        throw new Error(`API call failed with status: ${response.status}`);
+                    }
 
-            const donutCtx = document.getElementById('commentDonutChart').getContext('2d');
-            donutChartInstance = createDonutChart(donutCtx);
+                    const result = await response.json();
+                    const candidate = result.candidates?.[0];
+
+                    if (candidate && candidate.content?.parts?.[0]?.text) {
+                        const jsonText = candidate.content.parts[0].text;
+                        return JSON.parse(jsonText);
+                    } else {
+                        throw new Error("Gemini response was empty or malformed.");
+                    }
+                } catch (error) {
+                    console.error("Gemini API Error:", error);
+                    // On final failure, throw error.
+                    if (i === MAX_RETRIES - 1) throw error;
+                    // Otherwise, retry logic continues
+                }
+            }
         }
         
-        window.onload = function() {
-            initializeSubjectSelector();
-            
-            // Set initial icons for the toggle
-            document.getElementById('modeIcon').textContent = document.body.classList.contains('dark-mode') ? '☀️' : '🌙';
+        const SOW_SCHEMA = {
+            type: "OBJECT",
+            properties: {
+                focusKPI: { type: "STRING", description: "The single KPI identified as the focus area for improvement (e.g., 'Student Interest')." },
+                unitTitle: { type: "STRING", description: "A catchy, action-oriented title for the teaching unit (e.g., 'The Power of Play: Gamified Learning')." },
+                keyTeachingObjective: { type: "STRING", description: "The measurable objective for the term, directly addressing the focus KPI." },
+                suggestedActivity: { type: "STRING", description: "A detailed, practical classroom activity or strategy to address the objective and improve the KPI, explicitly referencing the qualitative feedback." },
+                successMetric: { type: "STRING", description: "A clear, measurable target for the next feedback cycle (e.g., 'Increase 'Interesting' responses for this KPI by 15%')." },
+                qualitativeTheme: { type: "STRING", description: "A summary theme derived from the improvement suggestions (e.g., 'Need for more real-world examples and practical tasks')." }
+            },
+            propertyOrdering: ["focusKPI", "unitTitle", "keyTeachingObjective", "suggestedActivity", "successMetric", "qualitativeTheme"]
         };
+        
+        async function triggerSOWGeneration(subjectName) {
+            const subjectData = allData[subjectName];
+            const weakest = getWeakestKPI(subjectData);
+            const qualitativeSuggestions = subjectData.qualitative.join('; ');
+            
+            document.getElementById('loading-overlay').style.display = 'flex';
+            document.getElementById('loading-text').innerText = `Analyzing data and generating SOW for ${subjectName}...`;
 
+            const systemPrompt = `Act as a Head of Department and Curriculum Designer. Analyze the quantitative and qualitative feedback provided. The quantitative focus is ${weakest.focusKPI}. The qualitative feedback is a list of improvement suggestions. Create a structured Scheme of Work (SOW) unit plan for the next term in JSON format. The plan MUST directly address the focus KPI and incorporate the themes from the improvement suggestions. Keep all responses concise and professional.`;
+            
+            const userQuery = `The focus KPI to improve is '${weakest.focusKPI}' (current score: ${weakest.t3Score}%). The raw student improvement suggestions are: ${qualitativeSuggestions}`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: SOW_SCHEMA
+                }
+            };
+
+            try {
+                const sowPlan = await callGeminiApi(payload);
+                updateSOWDisplay(sowPlan, subjectData.qualitative);
+            } catch (error) {
+                console.error("Failed to generate SOW:", error);
+                document.getElementById('sow-focus-kpi').innerText = `Error: Failed to generate plan. Check console for details.`;
+                document.getElementById('sow-objective').innerText = `Please try again.`;
+                document.getElementById('unit-title-display').innerText = `Unit Plan: Generation Failed`;
+            } finally {
+                document.getElementById('loading-overlay').style.display = 'none';
+                document.getElementById('loading-text').innerText = 'Loading Data and Analyzing Feedback for SOW...';
+            }
+        }
+
+        function updateSOWDisplay(plan, rawSuggestions) {
+            document.getElementById('unit-title-display').innerText = `Unit Plan: ${plan.unitTitle || 'New Unit Focus'}`;
+            document.getElementById('sow-focus-kpi').innerHTML = `<span class="low-score-highlight">${plan.focusKPI || 'N/A'}</span>`;
+            document.getElementById('sow-objective').innerText = plan.keyTeachingObjective || 'Objective not generated.';
+            document.getElementById('sow-activity').innerText = plan.suggestedActivity || 'Activity not generated.';
+            document.getElementById('sow-metric').innerText = plan.successMetric || 'Metric not generated.';
+            document.getElementById('sow-qualitative-theme').innerText = plan.qualitativeTheme || 'Theme not generated.';
+
+            const list = document.getElementById('improvement-list');
+            list.innerHTML = rawSuggestions.length > 0 ? 
+                rawSuggestions.map(comment => `<li>${comment}</li>`).join('') :
+                '<li>No specific improvement suggestions were left by students.</li>';
+        }
+
+        // --- Initialization ---
+
+        async function init() {
+            document.getElementById('loading-overlay').style.display = 'flex';
+            
+            const [t1Rows, t3Rows] = await Promise.all([
+                loadCSV(T1_FILE),
+                loadCSV(T3_FILE)
+            ]);
+
+            if (t1Rows.length === 0 || t3Rows.length === 0) {
+                 document.getElementById('loading-text').innerText = 'Error: Failed to load one or both CSV files. Check filenames and console.';
+                 return;
+            }
+
+            allData = processFeedback(t1Rows, t3Rows);
+            const subjects = Object.keys(allData).sort();
+
+            if (subjects.length > 0) {
+                renderSubjectSelector(subjects);
+                document.getElementById('main-content').classList.remove('hidden');
+            } else {
+                document.getElementById('loading-text').innerText = 'Error: No valid subject data found in CSV files.';
+            }
+
+            document.getElementById('loading-overlay').style.display = 'none';
+        }
+
+        function toggleLightDark() {
+            const body = document.body;
+            const icon = document.getElementById('modeIcon');
+            body.classList.toggle('dark-mode');
+            
+            const selectedSubject = document.querySelector('.subject-button.active')?.dataset.subject;
+            
+            // Wait for CSS variables to update before redrawing chart
+            setTimeout(() => {
+                if (body.classList.contains('dark-mode')) {
+                    icon.innerHTML = '☀️'; // Sun icon for dark mode
+                    localStorage.setItem('theme', 'dark');
+                } else {
+                    icon.innerHTML = '🌙'; // Moon icon for light mode
+                    localStorage.setItem('theme', 'light');
+                }
+                
+                // Redraw chart to pick up new colors
+                if (selectedSubject) {
+                    drawChart(allData[selectedSubject], selectedSubject);
+                }
+            }, 50); 
+        }
+
+        // Apply saved mode on load
+        if (localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark-mode');
+            document.getElementById('modeIcon').innerHTML = '☀️';
+        }
+        
+        // Expose functions globally for HTML buttons
+        window.selectSubject = selectSubject;
+        window.triggerSOWGeneration = triggerSOWGeneration;
+        window.toggleLightDark = toggleLightDark;
+
+        init();
     </script>
-
 </body>
 </html>
