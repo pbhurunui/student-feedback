@@ -8,21 +8,29 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            /* Default Brilliant Blues Palette */
-            --color-primary: #005f73;
-            --color-secondary: #0a9396;
-            --color-light-accent: #94d2bd;
-            --color-danger-accent: #e9d8a6; 
-            --color-danger-dark: #9b6d00;
+            /* Dynamic Color Definitions using HSL (Hue, Saturation, Lightness) */
+            /* Base Hue is a deep Teal/Blue (189) */
+            --hue-base: 189;
+
+            /* Light Mode Palette */
+            --color-primary: hsl(var(--hue-base) 100% 22%); /* Deep Teal: #005f73 */
+            --color-secondary: hsl(var(--hue-base) 85% 31%); /* Darker Teal: #0a9396 */
+            --color-light-accent: hsl(var(--hue-base) 38% 70%); /* Pale Blue/Green (T1 Bar): #94d2bd */
             
+            /* Danger/Warning Colors */
+            --color-danger-dark: hsl(38 100% 30%); /* Mustard Yellow/Brown: #9b6d00 */
+            --color-danger-accent: hsl(45 60% 78%); /* Light Beige (Donut Highlight): #e9d8a6 */
+            
+            /* Backgrounds and Neutrals */
             --color-dark: #001219;
             --color-text: var(--color-dark);
-            --color-bg: #f8f9fa;
+            --color-bg: #f8f9fa; /* Off-White background */
             --color-card-bg: white;
             --color-shadow: rgba(0, 0, 0, 0.1);
+            
             transition: background-color 0.3s, color 0.3s;
         }
         
@@ -33,10 +41,25 @@
         }
 
         .dark-mode {
-            --color-text: #e9ecef;
-            --color-bg: #1f2937;
-            --color-card-bg: #374151;
+            /* Dark Mode Palette: Adjusting Lightness (L) for contrast */
+            --color-text: #e9ecef; /* Light gray text */
+            --color-bg: #1f2937; /* Dark slate background */
+            --color-card-bg: #374151; /* Medium slate card */
             --color-shadow: rgba(255, 255, 255, 0.1);
+
+            /* Lighter colors for dark background contrast */
+            --color-primary: hsl(var(--hue-base) 80% 65%); 
+            --color-secondary: hsl(var(--hue-base) 70% 55%);
+            --color-light-accent: hsl(var(--hue-base) 50% 40%); /* Darker T1 bar, subtle */
+
+            /* Danger/Warning Contrast */
+            --color-danger-dark: hsl(38 100% 55%); /* Brighter mustard */
+            --color-danger-accent: hsl(45 90% 85%); /* Brighter beige/yellow */
+            
+            /* Adjust border color for dark cards */
+            .kpi-card {
+                border-color: rgba(255, 255, 255, 0.1);
+            }
         }
 
         /* Animation for a flowy entrance */
@@ -72,7 +95,7 @@
             border-radius: 0.75rem;
             box-shadow: 0 10px 15px -3px var(--color-shadow), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
             transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s, color 0.3s;
-            border: 1px solid rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(0, 0, 0, 0.05); /* Base border */
         }
         .kpi-card:hover {
             transform: translateY(-5px);
@@ -91,9 +114,8 @@
             border: 2px solid var(--color-primary);
             background-color: var(--color-card-bg);
             color: var(--color-primary);
-            /* Added z-index and display block just in case of layering/layout issues */
             z-index: 10; 
-            display: inline-block !important; /* Changed from block to inline-block for better layout */
+            display: inline-block !important;
         }
         .subject-button.active {
             background-color: var(--color-primary);
@@ -101,7 +123,8 @@
             box-shadow: 0 4px 6px rgba(0, 95, 115, 0.3);
         }
         .dark-mode .subject-button.active {
-             box-shadow: 0 4px 6px rgba(148, 210, 189, 0.3);
+             /* Use the lighter primary for dark mode shadow */
+             box-shadow: 0 4px 6px var(--color-primary);
         }
     </style>
 </head>
@@ -110,15 +133,8 @@
     <header class="bg-primary text-white py-8 text-center relative">
         <div class="container mx-auto px-4">
             
-            <!-- Theme and Mode Selector -->
+            <!-- Mode Selector Only -->
             <div class="absolute top-4 right-4 flex space-x-2 items-center">
-                 <label for="themeSelector" class="text-sm font-medium mr-2 hidden sm:block">Theme:</label>
-                <select id="themeSelector" onchange="setTheme(this.value)" class="p-2 rounded-lg text-sm bg-white/20 text-white border border-white/30 cursor-pointer">
-                    <option value="brilliant-blues">Brilliant Blues</option>
-                    <option value="energetic-reds">Energetic Reds</option>
-                    <option value="muted-greens">Muted Greens</option>
-                </select>
-                
                 <button id="modeToggle" onclick="toggleLightDark()" class="p-2 rounded-full bg-white/20 hover:bg-white/30 transition duration-300">
                     <span id="modeIcon" class="text-xl">🌙</span>
                 </button>
@@ -133,12 +149,12 @@
         
         <section id="kpi-dashboard" class="mb-16 animated-section" style="animation-delay: 0.2s;">
             <div class="text-center mb-8 max-w-3xl mx-auto">
-                <h2 class="text-3xl font-bold text-primary mb-3">Key Performance Snapshot: The Radar</h2>
+                <h2 class="text-3xl font-bold text-primary mb-3">Key Performance Snapshot: The Grouped Bar Chart</h2>
                 <!-- Subject Filter -->
                 <div id="subject-selector" class="flex justify-center flex-wrap gap-4 mb-6">
                     <!-- Buttons will be injected here by JavaScript -->
                 </div>
-                <p id="kpi-description" class="text-lg text-gray-500 dark:text-gray-300">Viewing **Overall** results. The chart visually compares your performance across five core dimensions in T1 vs. T3. Notice the major success in **Feeling Safe & Heard (100%)** and **Clarity (89%)**, but a sharp contraction in **Interest (down to 56%)** now flags the most critical area for immediate attention.</p>
+                <p id="kpi-description" class="text-lg text-gray-500 dark:text-gray-300">Viewing **Overall** results. The chart visually compares your performance across five core dimensions in T1 (lighter color) vs. T3 (darker color). Notice the major success in **Feeling Safe & Heard (100%)** and **Clarity (89%)**, but a sharp contraction in **Interest (down to 56%)** now flags the most critical area for immediate attention.</p>
             </div>
             <div class="kpi-card p-4 md:p-8">
                 <div class="chart-container max-w-5xl mx-auto">
@@ -157,12 +173,14 @@
                     <canvas id="commentDonutChart"></canvas>
                 </div>
                 <div class="md:col-span-2 space-y-4">
-                    <div class="kpi-card p-6 border-l-4 border-secondary dark:border-light-accent">
+                    <!-- Note: text-secondary class now uses dynamic secondary color -->
+                    <div class="kpi-card p-6 border-l-4 text-primary border-secondary dark:border-secondary">
                         <p class="text-2xl font-bold text-secondary">67% Positive</p>
                         <p class="text-gray-600 dark:text-gray-300">Comments focused on strengths: supportive environment, approachability, and successful practical activities.</p>
                     </div>
-                    <div class="kpi-card p-6 border-l-4 border-[#9b6d00] dark:border-[#e9d8a6]">
-                        <p class="text-2xl font-bold text-[#9b6d00] dark:text-[#e9d8a6]">33% Improvement</p>
+                    <!-- Note: text-[#9b6d00] replaced with dynamic danger-dark color -->
+                    <div class="kpi-card p-6 border-l-4 border-danger-dark dark:border-danger-dark">
+                        <p class="text-2xl font-bold text-danger-dark">33% Improvement</p>
                         <p class="text-gray-600 dark:text-gray-300">Comments focused on actionable areas: primarily lesson **engagement**, instructional pacing, and feedback clarity on grading.</p>
                     </div>
                 </div>
@@ -181,7 +199,7 @@
                     <div class="mx-auto bg-primary text-white w-16 h-16 rounded-full flex items-center justify-center mb-4 transition duration-300 group-hover:scale-110">
                         <span class="text-3xl font-bold">1</span>
                     </div>
-                    <h3 id="action-title-1" class="text-xl font-bold mb-2 text-primary dark:text-light-accent">Priority: Boost Engagement</h3>
+                    <h3 id="action-title-1" class="text-xl font-bold mb-2 text-primary">Priority: Boost Engagement</h3>
                     <p id="action-desc-1" class="text-gray-600 dark:text-gray-300">Designate specific activities to make "boring tasks seem engaging" by integrating more variety, technology, or creative practical applications.</p>
                 </div>
                 <!-- Action 2 -->
@@ -189,7 +207,7 @@
                      <div class="mx-auto bg-secondary text-white w-16 h-16 rounded-full flex items-center justify-center mb-4 transition duration-300 group-hover:scale-110">
                         <span class="text-3xl font-bold">2</span>
                     </div>
-                    <h3 id="action-title-2" class="text-xl font-bold mb-2 text-primary dark:text-light-accent">Focus: Pacing Control</h3>
+                    <h3 id="action-title-2" class="text-xl font-bold mb-2 text-primary">Focus: Pacing Control</h3>
                     <p id="action-desc-2" class="text-gray-600 dark:text-gray-300">Continue to check for understanding, but ensure specific topics that students found challenging ("certain days, certain topics") are slowed down and reinforced.</p>
                 </div>
                 <!-- Action 3 -->
@@ -197,7 +215,7 @@
                      <div class="mx-auto bg-light-accent text-primary w-16 h-16 rounded-full flex items-center justify-center mb-4 transition duration-300 group-hover:scale-110">
                         <span class="text-3xl font-bold">3</span>
                     </div>
-                    <h3 id="action-title-3" class="text-xl font-bold mb-2 text-primary dark:text-light-accent">Focus: Feedback Clarity</h3>
+                    <h3 id="action-title-3" class="text-xl font-bold mb-2 text-primary">Focus: Feedback Clarity</h3>
                     <p id="action-desc-3" class="text-gray-600 dark:text-gray-300">Ensure feedback not only covers what was done, but explicitly details **"what you need to do"** next regarding grading and success criteria.</p>
                 </div>
             </div>
@@ -209,29 +227,7 @@
     </footer>
 
     <script>
-        const THEMES = {
-            'brilliant-blues': { 
-                primary: '#005f73', 
-                secondary: '#0a9396', 
-                lightAccent: '#94d2bd', 
-                dangerAccent: '#e9d8a6', 
-                dangerDark: '#9b6d00'
-            },
-            'energetic-reds': { 
-                primary: '#ae2012', 
-                secondary: '#bb3e03', 
-                lightAccent: '#e9d8a6', 
-                dangerAccent: '#e09f3e', 
-                dangerDark: '#9b6d00'
-            },
-            'muted-greens': { 
-                primary: '#3a8a3a', 
-                secondary: '#588157', 
-                lightAccent: '#a3b18a', 
-                dangerAccent: '#dad7cd', 
-                dangerDark: '#7f8a65'
-            }
-        };
+        // Removed THEMES object
         
         // --- Subject-Specific Data Structure with Action Plans ---
         // Favorable Rates (%) for T1 vs T3 in the order: [Clarity, Interest, Comfort, Feedback Speed, Safe & Heard]
@@ -239,7 +235,7 @@
             'Overall': {
                 T1: [89, 89, 89, 67, 100],
                 T3: [89, 56, 89, 89, 100],
-                description: "The chart shows the overall results. Notice the major success in **Feeling Safe & Heard (100%)** and **Clarity (89%)**, but a sharp contraction in **Interest (down to 56%)** now flags the most critical area for immediate attention.",
+                description: "The chart visually compares your performance across five core dimensions in T1 (lighter color) vs. T3 (darker color). Notice the major success in **Feeling Safe & Heard (100%)** and **Clarity (89%)**, but a sharp contraction in **Interest (down to 56%)** now flags the most critical area for immediate attention.",
                 actionPlan: {
                     1: { title: 'Priority: Boost Engagement', description: 'Designate specific activities to make "boring tasks seem engaging" by integrating more variety, technology, or creative practical applications.' },
                     2: { title: 'Focus: Pacing Control', description: 'Continue to check for understanding, but ensure specific topics that students found challenging ("certain days, certain topics") are slowed down and reinforced.' },
@@ -249,7 +245,7 @@
             'Music': {
                 T1: [92, 92, 92, 62, 100],
                 T3: [83, 50, 83, 83, 100],
-                description: "Viewing **Music** results. The drop in **Lesson Interest** from 92% to **50%** is particularly stark here, while **Feedback Speed** significantly improved from 62% to 83%.",
+                description: "Viewing **Music** results. The chart visually compares your performance across five core dimensions in T1 (lighter color) vs. T3 (darker color). The drop in **Lesson Interest** from 92% to **50%** is particularly stark here, while **Feedback Speed** significantly improved from 62% to 83%.",
                 actionPlan: {
                     1: { title: 'Priority: Increase Practical Application', description: 'Focus on project-based learning and practical skills that align with student interests to counter the sharp drop in engagement (92% to 50%).' },
                     2: { title: 'Focus: Vary Theory Instruction', description: 'Address feedback about "certain topics" being slow by using more diverse methods (simulations, group study) to reinforce music theory concepts.' },
@@ -259,7 +255,7 @@
             'Ako': {
                 T1: [100, 75, 100, 100, 100],
                 T3: [100, 50, 100, 100, 100],
-                description: "Viewing **Ako** results. All KPIs remain excellent except for **Lesson Interest**, which fell from 75% to **50%**, indicating a need for more engaging content.",
+                description: "Viewing **Ako** results. The chart visually compares your performance across five core dimensions in T1 (lighter color) vs. T3 (darker color). All KPIs remain excellent except for **Lesson Interest**, which fell from 75% to **50%**, indicating a need for more engaging content.",
                 actionPlan: {
                     1: { title: 'Priority: Define Purpose & Relevance', description: 'Explicitly explain the learning goals and real-world relevance of every Ako activity to address the comment "You don\'t teach me so I\'m not sure."' },
                     2: { title: 'Focus: Introduce New Activities', description: 'Integrate new group challenges or social-emotional learning activities to re-boost interest, which dropped 25 percentage points.' },
@@ -269,7 +265,7 @@
             'Digital Technology': {
                 T1: [0, 100, 0, 0, 100], 
                 T3: [100, 50, 100, 50, 50],
-                description: "Viewing **Digital Technology** results. Note the high volatility due to low sample size (N=1 in T1, N=2 in T3). **Safe & Heard** dropped to 50% and **Interest** fell to 50%.",
+                description: "Viewing **Digital Technology** results. The chart visually compares your performance across five core dimensions in T1 (lighter color) vs. T3 (darker color). Note the high volatility due to low sample size (N=1 in T1, N=2 in T3). **Safe & Heard** dropped to 50% and **Interest** fell to 50%.",
                 actionPlan: {
                     1: { title: 'Immediate: Safe & Heard Check-in', description: 'Address the 50% drop in Feeling Safe & Heard immediately with an anonymous feedback opportunity and 1:1 check-ins to rebuild trust.' },
                     2: { title: 'Priority: Project-Based Interest', description: 'Restore Lesson Interest (down to 50%) by introducing an exciting, student-choice, project-based unit focused on modern tech tools.' },
@@ -285,22 +281,11 @@
         // --- Utility Functions ---
 
         function getCssVar(name) {
+            // Function adjusted to get CSS variable dynamically
             return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
         }
 
-        function setTheme(themeName) {
-            const theme = THEMES[themeName];
-            if (theme) {
-                const root = document.documentElement;
-                root.style.setProperty('--color-primary', theme.primary);
-                root.style.setProperty('--color-secondary', theme.secondary);
-                root.style.setProperty('--color-light-accent', theme.lightAccent);
-                root.style.setProperty('--color-danger-accent', theme.dangerAccent);
-                root.style.setProperty('--color-danger-dark', theme.dangerDark);
-                
-                renderCharts();
-            }
-        }
+        // Removed setTheme function
 
         function toggleLightDark() {
             const body = document.body;
@@ -308,6 +293,7 @@
             const isDarkMode = body.classList.contains('dark-mode');
             document.getElementById('modeIcon').textContent = isDarkMode ? '☀️' : '🌙';
 
+            // Re-render charts to pick up new dynamic colors from CSS variables
             renderCharts();
         }
 
@@ -401,8 +387,8 @@
 
         // --- Chart Creation Functions ---
 
-        function createRadarChart(ctx) {
-            const primaryColor = getCssVar('--color-primary');
+        function createComparisonChart(ctx) {
+            // Colors are fetched dynamically based on current mode (light or dark)
             const secondaryColor = getCssVar('--color-secondary');
             const lightAccentColor = getCssVar('--color-light-accent');
             const globalFontColor = document.body.classList.contains('dark-mode') ? '#e9ecef' : '#4A5568';
@@ -421,43 +407,51 @@
                     {
                         label: 'Term 1 Favorable Rate (%)',
                         data: subjectData.T1, 
-                        fill: true,
-                        backgroundColor: lightAccentColor + '40', // Accent with opacity
+                        backgroundColor: lightAccentColor, 
                         borderColor: lightAccentColor,
-                        pointBackgroundColor: lightAccentColor,
-                        pointBorderColor: '#fff',
-                        pointHoverBackgroundColor: '#fff',
-                        pointHoverBorderColor: lightAccentColor
+                        borderWidth: 1,
+                        borderRadius: 4
                     },
                     {
                         label: 'Term 3 Favorable Rate (%)',
                         data: subjectData.T3, 
-                        fill: true,
-                        backgroundColor: secondaryColor + '40', // Secondary with opacity
+                        backgroundColor: secondaryColor,
                         borderColor: secondaryColor, 
-                        pointBackgroundColor: secondaryColor,
-                        pointBorderColor: '#fff',
-                        pointHoverBackgroundColor: '#fff',
-                        pointHoverBorderColor: secondaryColor
+                        borderWidth: 1,
+                        borderRadius: 4
                     }
                 ]
             };
 
             return new Chart(ctx, {
-                type: 'radar',
+                type: 'bar',
                 data: kpiData,
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    elements: { line: { borderWidth: 2 } },
+                    barPercentage: 0.8,
+                    categoryPercentage: 0.8,
                     scales: {
-                        r: {
-                            angleLines: { display: true, color: globalFontColor + '40' },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: globalFontColor, font: { size: 14, weight: '600' } }
+                        },
+                        y: {
+                            min: 0,
+                            max: 100,
+                            stepSize: 10,
+                            title: {
+                                display: true,
+                                text: 'Favorable Rate (%)',
+                                color: globalFontColor
+                            },
                             grid: { color: globalFontColor + '40' },
-                            pointLabels: { color: globalFontColor, font: { size: 14, weight: '600' } },
-                            suggestedMin: 50,
-                            suggestedMax: 100,
-                            ticks: { stepSize: 10, backdropColor: 'transparent', color: globalFontColor + '80' }
+                            ticks: { 
+                                color: globalFontColor + '80',
+                                callback: function(value) {
+                                    return value + '%'; // Add percentage sign
+                                }
+                            }
                         }
                     },
                     plugins: {
@@ -471,6 +465,12 @@
                                     const item = tooltipItems[0];
                                     let label = item.chart.data.labels[item.dataIndex];
                                     if (Array.isArray(label)) { return label.join(' '); } else { return label; }
+                                },
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) { label += ': '; }
+                                    if (context.parsed.y !== null) { label += context.parsed.y + '%'; }
+                                    return label;
                                 }
                             }
                         }
@@ -484,6 +484,7 @@
              const dangerAccentColor = getCssVar('--color-danger-accent');
              const primaryColor = getCssVar('--color-primary');
              const dangerDarkColor = getCssVar('--color-danger-dark');
+             const cardBgColor = getCssVar('--color-card-bg');
              
              const donutData = {
                 labels: ['Positive/Working Well', 'Improvements/Suggestions'],
@@ -498,7 +499,7 @@
                         dangerDarkColor
                     ],
                     borderWidth: 2,
-                    borderColor: getCssVar('--color-card-bg') 
+                    borderColor: cardBgColor // Use dynamic card BG color for the border
                 }]
             };
 
@@ -543,7 +544,7 @@
             if (donutChartInstance) donutChartInstance.destroy();
 
             const kpiCtx = document.getElementById('kpiComparisonChart').getContext('2d');
-            kpiChartInstance = createRadarChart(kpiCtx);
+            kpiChartInstance = createComparisonChart(kpiCtx);
 
             const donutCtx = document.getElementById('commentDonutChart').getContext('2d');
             donutChartInstance = createDonutChart(donutCtx);
@@ -554,7 +555,6 @@
             
             // Set initial icons for the toggle
             document.getElementById('modeIcon').textContent = document.body.classList.contains('dark-mode') ? '☀️' : '🌙';
-            document.getElementById('themeSelector').value = 'brilliant-blues';
         };
 
     </script>
