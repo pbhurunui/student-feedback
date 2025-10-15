@@ -1,747 +1,373 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data-Driven Teaching Scheme of Work (SOW)</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            /* Classroom Theme Color Definitions */
-            --hue-base: 200; /* Deep Teal/Blue */
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import Papa from 'papaparse';
+import { Search, Loader2, Upload, BarChart2, MessageSquare, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
 
-            /* Light Mode Palette */
-            --color-primary: hsl(var(--hue-base) 60% 30%); /* Deep Navy Blue */
-            --color-secondary: hsl(45 90% 60%); /* Mustard Yellow/Gold */
-            --color-light-accent: hsl(var(--hue-base) 40% 75%); /* Light Blue */
-            
-            /* Danger/Warning Colors (for low scores) */
-            --color-danger-dark: hsl(15 100% 45%); /* Red-Orange */
-            --color-danger-accent: hsl(15 60% 85%); /* Light Coral */
-            
-            /* Backgrounds and Neutrals */
-            --color-dark: #1f2937; /* Dark Gray */
-            --color-text: var(--color-dark);
-            --color-bg: #f5f7fa; /* Very Light Blue-Gray, like clean paper */
-            --color-card-bg: white;
-            --color-shadow: rgba(31, 41, 55, 0.15); /* Shadow based on dark color */
-            
-            transition: background-color 0.3s, color 0.3s;
+// --- Blackboard Chalk Theme Definition ---
+const BLACKBOARD_GREEN = '#214D3C'; // Deep, saturated dark green
+const CHALK_WHITE = '#F0F0E0';      // Subtle off-white for chalk effect
+const FRAME_BROWN = '#5D4037';      // Dark wood frame for containers
+
+// Inline CSS for the chalk effect, since we can't easily import a chalk font.
+const chalkShadow = {
+  textShadow: `
+    1px 1px 1px ${CHALK_WHITE},
+    -1px -1px 1px ${CHALK_WHITE},
+    1px -1px 1px ${CHALK_WHITE},
+    -1px 1px 1px ${CHALK_WHITE}
+  `,
+  color: CHALK_WHITE,
+};
+
+// Simple utility to find the most frequent value in an array
+const getMode = (arr) => {
+    const counts = arr.reduce((acc, value) => {
+        acc[value] = (acc[value] || 0) + 1;
+        return acc;
+    }, {});
+    let maxCount = 0;
+    let mode = '';
+    for (const key in counts) {
+        if (counts[key] > maxCount) {
+            maxCount = counts[key];
+            mode = key;
         }
+    }
+    return mode;
+};
+
+// --- Main App Component ---
+const App = () => {
+  const [file, setFile] = useState(null);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [fileName, setFileName] = useState('');
+  const [activeTab, setActiveTab] = useState('summary');
+  const [showHelp, setShowHelp] = useState(false);
+
+  const handleFileChange = (event) => {
+    const uploadedFile = event.target.files[0];
+    if (uploadedFile && uploadedFile.name.endsWith('.csv')) {
+      setFile(uploadedFile);
+      setFileName(uploadedFile.name);
+      setData(null);
+      setError('');
+    } else {
+      setError('Please upload a valid CSV file.');
+      setFile(null);
+      setFileName('');
+    }
+  };
+
+  const parseCSV = useCallback(() => {
+    if (!file) return;
+
+    setLoading(true);
+    setError('');
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        setLoading(false);
+        if (results.errors.length) {
+          setError('CSV parsing error. Check file format.');
+          console.error(results.errors);
+          return;
+        }
+
+        if (results.data.length === 0) {
+            setError('The CSV file is empty or contains no meaningful data.');
+            return;
+        }
+
+        // Basic clean-up/standardization (e.g., trimming whitespace from keys and values)
+        const cleanedData = results.data.map(row => {
+            const newRow = {};
+            for (const key in row) {
+                const cleanKey = key.trim();
+                newRow[cleanKey] = (row[key] || '').trim();
+            }
+            return newRow;
+        }).filter(row => Object.values(row).some(val => val !== '')); // Filter out entirely blank rows
+
+        setData(cleanedData);
+      },
+      error: (error) => {
+        setLoading(false);
+        setError('Failed to process file: ' + error.message);
+      }
+    });
+  }, [file]);
+
+  useEffect(() => {
+    if (file) {
+      parseCSV();
+    }
+  }, [file, parseCSV]);
+
+  // --- Data Analysis Logic (Memoized for efficiency) ---
+  const analysisSummary = useMemo(() => {
+    if (!data || data.length === 0) return null;
+
+    const totalResponses = data.length;
+    
+    // Define the key metrics based on the provided CSV structure (assuming 2025 T3 structure)
+    const keyMetrics = {
+        'Clarity': 'How clearly do I explain the lessons?',
+        'Engagement': 'How interesting are the lessons?',
+        'Comfort': 'How comfortable do you feel asking for help in class?',
+        'Safety': 'Do I create an environment where you feel safe and heard?',
+        'FeedbackSpeed': 'How quickly do I give feedback on work or assignments?',
+    };
+
+    const metricResults = {};
+
+    for (const [metricKey, columnHeader] of Object.entries(keyMetrics)) {
+        const responses = data.map(row => row[columnHeader]).filter(v => v);
         
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--color-bg);
-            color: var(--color-text);
+        if (responses.length > 0) {
+            metricResults[metricKey] = {
+                mode: getMode(responses),
+                count: responses.length,
+                responses: responses
+            };
+        } else {
+            metricResults[metricKey] = { mode: 'N/A', count: 0, responses: [] };
         }
+    }
+    
+    // Analyze open feedback (What do you like most / What could be improved)
+    const likes = data.map(row => row['What do you like most about how I teach?']).filter(v => v);
+    const improvements = data.map(row => row['What do you think could be improved about how I teach?']).filter(v => v && v.toLowerCase() !== 'nothing' && v.toLowerCase() !== 'nope' && v.toLowerCase() !== '-');
 
-        .dark-mode {
-            /* Dark Mode Palette: Mimics a dark screen/projector background */
-            --color-text: #e5e7eb; 
-            --color-bg: #111827; /* Dark Slate Blue */
-            --color-card-bg: #1f2937; /* Slightly lighter dark card */
-            --color-shadow: rgba(107, 114, 128, 0.2);
+    return {
+        totalResponses,
+        metricResults,
+        likes,
+        improvements
+    };
+  }, [data]);
 
-            /* Lighter colors for dark background contrast */
-            --color-primary: hsl(var(--hue-base) 80% 65%); /* Brighter Teal */
-            --color-secondary: hsl(45 90% 70%); /* Brighter Mustard */
-            --color-light-accent: hsl(var(--hue-base) 40% 45%); 
+  // --- Rendering Components ---
 
-            /* Danger/Warning Contrast */
-            --color-danger-dark: hsl(15 100% 60%); 
-            --color-danger-accent: hsl(15 80% 80%);
-            
-            .kpi-card { border-color: rgba(255, 255, 255, 0.1); }
+  const ChalkButton = ({ children, onClick, active, icon: Icon, disabled = false }) => (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`
+        flex items-center justify-center px-4 py-2 mx-1
+        text-sm font-bold tracking-wider uppercase
+        rounded-lg border-2 transition-all duration-200
+        ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.03] active:scale-[0.98]'}
+        ${active
+          ? 'bg-amber-300 text-slate-900 border-amber-300 shadow-lg shadow-amber-500/50'
+          : 'bg-transparent text-[#F0F0E0] border-[#F0F0E0] hover:bg-[#F0F0E0]/10'
         }
+      `}
+      style={active ? {} : chalkShadow}
+    >
+      {Icon && <Icon className="w-4 h-4 mr-2" />}
+      {children}
+    </button>
+  );
 
-        /* Animation for a flowy entrance */
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translate3d(0, 20px, 0); }
-            to { opacity: 1; transform: translate3d(0, 0, 0); }
-        }
-        .animated-section { animation: fadeInUp 0.8s ease-out both; }
-
-
-        .chart-container {
-            position: relative;
-            width: 100%;
-            height: 40vh;
-            max-height: 450px;
-        }
-        
-        .kpi-card {
-            background-color: var(--color-card-bg);
-            border-radius: 0.75rem;
-            box-shadow: 0 8px 15px -3px var(--color-shadow), 0 3px 6px -2px rgba(0, 0, 0, 0.05);
-            transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s, color 0.3s;
-            border: 1px solid rgba(0, 0, 0, 0.05); 
-        }
-        .kpi-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 15px 20px -5px var(--color-shadow), 0 8px 8px -5px rgba(0, 0, 0, 0.04);
-        }
-        .text-primary { color: var(--color-primary); }
-        .bg-primary { background-color: var(--color-primary); }
-        .text-secondary { color: var(--color-secondary); }
-
-        .subject-button {
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem; /* Slightly less rounded for a more structured look */
-            font-weight: 600;
-            transition: all 0.2s;
-            cursor: pointer;
-            border: 2px solid var(--color-primary);
-            background-color: var(--color-card-bg);
-            color: var(--color-primary);
-        }
-        .subject-button.active {
-            background-color: var(--color-primary);
-            color: white;
-            box-shadow: 0 4px 6px var(--color-shadow);
-        }
-        
-        #loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(var(--color-bg), 0.95);
-            backdrop-filter: blur(3px);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 100;
-            transition: opacity 0.5s ease;
-        }
-        .spinner {
-            border: 8px solid var(--color-light-accent);
-            border-top: 8px solid var(--color-secondary); /* Highlighted top */
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .scheme-header {
-            border-bottom: 3px solid var(--color-secondary); /* Accent line */
-            padding-bottom: 0.5rem;
-            margin-bottom: 1.5rem;
-            font-size: 1.875rem; /* text-3xl */
-            font-weight: 800;
-        }
-        /* SOW Step style: mimics a notebook margin */
-        .plan-step {
-            border-left: 6px solid var(--color-secondary); 
-            padding-left: 1.5rem;
-            transition: border-color 0.3s;
-        }
-        .low-score-highlight {
-            color: var(--color-danger-dark);
-            font-weight: bold;
-        }
-        .bg-accent-soft {
-            background-color: hsl(45 90% 90%); /* Very light mustard for contrast */
-        }
-        .dark-mode .bg-accent-soft {
-            background-color: #374151; /* Darker gray for dark mode contrast */
-        }
-    </style>
-</head>
-<body class="text-dark">
-    <!-- Loading Overlay -->
-    <div id="loading-overlay">
-        <div class="spinner"></div>
-        <p id="loading-text" class="mt-4 text-xl font-semibold text-primary">Loading Data and Analyzing Feedback for SOW...</p>
+  const Card = ({ title, children, icon: Icon }) => (
+    <div className={`p-6 m-2 flex-1 min-w-[300px] rounded-lg shadow-xl`} style={{ backgroundColor: BLACKBOARD_GREEN, border: `3px solid ${FRAME_BROWN}` }}>
+      <h3 className="text-xl mb-3 flex items-center border-b pb-2 border-dashed" style={chalkShadow}>
+        {Icon && <Icon className="w-5 h-5 mr-3" />}
+        {title}
+      </h3>
+      <div className="text-lg" style={chalkShadow}>
+        {children}
+      </div>
     </div>
+  );
 
-    <header class="bg-primary text-white py-10 text-center relative shadow-lg">
-        <div class="container mx-auto px-4">
-            
-            <div class="absolute top-4 right-4 flex space-x-2 items-center">
-                <button id="modeToggle" onclick="toggleLightDark()" class="p-2 rounded-full bg-white/20 hover:bg-white/30 transition duration-300">
-                    <span id="modeIcon" class="text-xl">🌙</span>
-                </button>
-            </div>
-            
-            <h1 class="text-4xl md:text-5xl font-extrabold mb-2 uppercase tracking-wider text-secondary">School Data Hub</h1>
-            <p class="text-xl md:text-2xl font-light text-white/90">Term 4 Scheme of Work: Translating Data into Actionable Teaching</p>
+  const SummaryView = () => {
+    if (!analysisSummary) return null;
+
+    const { totalResponses, metricResults, likes, improvements } = analysisSummary;
+
+    return (
+      <div className="space-y-8 p-4">
+        <h2 className="text-3xl text-center mb-6 border-b pb-4" style={chalkShadow}>
+          Overview: {fileName}
+        </h2>
+
+        <Card title="Total Responses" icon={MessageSquare}>
+            <p className="text-5xl font-black text-center pt-2">{totalResponses}</p>
+            <p className="text-sm text-center opacity-70 mt-2">students shared their feedback</p>
+        </Card>
+
+        <div className="flex flex-wrap -m-2">
+            {Object.entries(metricResults).map(([key, result]) => (
+                <Card key={key} title={`${key} Metric`} icon={BarChart2}>
+                    <p className="text-4xl font-black">{result.mode || 'N/A'}</p>
+                    <p className="text-sm opacity-70 mt-2">Most frequent response for '{Object.values(analysisSummary.metricResults).find(m => m.mode === result.mode && m.count === result.count) ? Object.keys(analysisSummary.metricResults).find(k => analysisSummary.metricResults[k] === result) : key}'.</p>
+                </Card>
+            ))}
         </div>
-    </header>
 
-    <main class="container mx-auto p-4 md:p-8 hidden" id="main-content">
+        <div className="flex flex-wrap -m-2">
+            <Card title="What Students Liked Most" icon={BookOpen}>
+                <ul className="list-disc pl-5 space-y-2 max-h-96 overflow-y-auto">
+                    {likes.length > 0 ? (
+                        likes.slice(0, 10).map((like, index) => <li key={index} className="opacity-90 italic">{like}</li>)
+                    ) : (
+                        <li className="opacity-70">No specific 'likes' feedback provided.</li>
+                    )}
+                </ul>
+                {likes.length > 10 && <p className="pt-2 text-sm opacity-70">... and {likes.length - 10} more comments.</p>}
+            </Card>
+
+            <Card title="Areas for Improvement" icon={Search}>
+                <ul className="list-disc pl-5 space-y-2 max-h-96 overflow-y-auto">
+                    {improvements.length > 0 ? (
+                        improvements.slice(0, 10).map((imp, index) => <li key={index} className="opacity-90 italic">{imp}</li>)
+                    ) : (
+                        <li className="opacity-70">No specific 'improvement' suggestions provided.</li>
+                    )}
+                </ul>
+                {improvements.length > 10 && <p className="pt-2 text-sm opacity-70">... and {improvements.length - 10} more suggestions.</p>}
+            </Card>
+        </div>
+      </div>
+    );
+  };
+
+  const RawDataView = () => (
+    <div className="p-4 overflow-x-auto">
+      <h2 className="text-3xl mb-6 border-b pb-4" style={chalkShadow}>Raw Data Table ({data?.length} rows)</h2>
+      {data && data.length > 0 ? (
+        <table className="min-w-full divide-y divide-gray-700">
+          <thead className="sticky top-0 bg-[#214D3C] z-10">
+            <tr>
+              {Object.keys(data[0]).map((header) => (
+                <th
+                  key={header}
+                  className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap"
+                  style={chalkShadow}
+                >
+                  {header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-700">
+            {data.slice(0, 100).map((row, rowIndex) => (
+              <tr key={rowIndex} className="hover:bg-[#325F4C]">
+                {Object.values(row).map((value, colIndex) => (
+                  <td
+                    key={colIndex}
+                    className="px-6 py-4 whitespace-nowrap text-sm"
+                    style={chalkShadow}
+                  >
+                    {value}
+                  </td>
+                ))}
+              </tr>
+            ))}
+             {data.length > 100 && (
+                <tr>
+                    <td colSpan={Object.keys(data[0]).length} className="px-6 py-4 text-center text-sm italic" style={chalkShadow}>
+                        ... Showing first 100 rows only ...
+                    </td>
+                </tr>
+            )}
+          </tbody>
+        </table>
+      ) : (
+        <p className="text-xl text-center p-8" style={chalkShadow}>No data available to display.</p>
+      )}
+    </div>
+  );
+  
+  const helpContent = (
+    <div className="mt-4 p-4 rounded-lg bg-[#325F4C]/70 border border-dashed border-[#F0F0E0]/50 space-y-4">
+        <h4 className="text-xl font-bold" style={chalkShadow}>How to Use This Analyzer</h4>
+        <ul className="list-disc pl-5 space-y-2 text-sm">
+            <li style={chalkShadow}>Click **'Upload CSV'** and select one of your student feedback files (e.g., *Student Feedback 2025 T3...*).</li>
+            <li style={chalkShadow}>The app will automatically parse the data and display a **Summary** using key columns like Clarity, Engagement, and Areas for Improvement.</li>
+            <li style={chalkShadow}>Use the **Raw Data** tab to view the spreadsheet data directly in a clean table format.</li>
+            <li style={chalkShadow}>**Next Step:** I can add more advanced features, like **Text Analysis** to group similar feedback comments!</li>
+        </ul>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen p-4 sm:p-8" style={{ backgroundColor: BLACKBOARD_GREEN }}>
+      {/* Blackboard Title Area */}
+      <header className="text-center mb-8 border-b-4 pb-4" style={{ borderColor: FRAME_BROWN }}>
+        <h1 className="text-5xl sm:text-6xl font-black tracking-wider" style={chalkShadow}>
+          The Feedback Board
+        </h1>
+        <p className="text-xl mt-2 italic" style={chalkShadow}>
+          Chalk up some insights!
+        </p>
+      </header>
+
+      {/* Main Content Area */}
+      <main className="max-w-7xl mx-auto">
+        {/* Upload and Status Bar */}
+        <div className="flex flex-col sm:flex-row items-center justify-between p-4 mb-4 rounded-lg" style={{ backgroundColor: BLACKBOARD_GREEN, border: `2px solid ${FRAME_BROWN}` }}>
+          
+          <div className="flex items-center space-x-4 mb-4 sm:mb-0">
+            <label className="cursor-pointer">
+              <input type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
+              <ChalkButton icon={Upload} onClick={() => document.querySelector('input[type="file"]').click()}>
+                {fileName ? `Re-upload: ${fileName}` : 'Upload CSV File'}
+              </ChalkButton>
+            </label>
+            <ChalkButton icon={ChevronDown} onClick={() => setShowHelp(prev => !prev)}>
+                {showHelp ? 'Hide Help' : 'Show Help'}
+            </ChalkButton>
+          </div>
+
+          <div className="flex items-center text-lg" style={chalkShadow}>
+            {loading && (
+              <span className="flex items-center text-yellow-300">
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                Parsing data...
+              </span>
+            )}
+            {error && <span className="text-red-300">{error}</span>}
+            {data && !loading && !error && (
+              <span className="text-green-300">
+                {data.length} records loaded successfully from {fileName}.
+              </span>
+            )}
+            {!file && !loading && !error && (
+                <span className="text-gray-400">
+                    Awaiting CSV file upload.
+                </span>
+            )}
+          </div>
+        </div>
+
+        {showHelp && helpContent}
         
-        <section id="sow-overview" class="mb-12 animated-section" style="animation-delay: 0.2s;">
-            <div class="kpi-card p-6 md:p-8">
-                <h2 class="scheme-header text-primary">I. Performance Comparison & Focused Objective</h2>
-                
-                <div id="subject-selector" class="flex justify-center flex-wrap gap-4 mb-6">
-                    <!-- Buttons will be injected here by JavaScript -->
-                </div>
-                
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                    <div class="lg:col-span-2">
-                        <p class="text-lg text-gray-600 dark:text-gray-300 mb-4">
-                            The bar chart compares student perceptions (Favorable Rate) from **Term 1 (Light Blue)** to **Term 3 (Navy Blue)**, highlighting the weakest KPI in **Red-Orange**.
-                        </p>
-                        <div class="chart-container max-w-4xl mx-auto">
-                            <canvas id="kpiComparisonChart"></canvas>
-                        </div>
-                    </div>
-                    
-                    <div class="lg:col-span-1 p-4 rounded-xl bg-accent-soft">
-                        <h3 class="text-2xl font-bold text-primary mb-4">Focus Area for Term 4</h3>
-                        <div id="focus-summary">
-                            <p class="text-lg text-gray-700 dark:text-gray-300">Select a subject to analyze its weakest performance metric and generate a focus objective.</p>
-                        </div>
-                    </div>
-                </div>
+        {/* Tabs and Analysis Area */}
+        {data && (
+          <div className="mt-8">
+            <div className="flex justify-center mb-6">
+              <ChalkButton active={activeTab === 'summary'} onClick={() => setActiveTab('summary')} icon={BarChart2}>
+                Summary Analysis
+              </ChalkButton>
+              <ChalkButton active={activeTab === 'raw'} onClick={() => setActiveTab('raw')} icon={MessageSquare}>
+                Raw Data View
+              </ChalkButton>
             </div>
-        </section>
 
-        <!-- SOW Unit Plan and Qualitative Feedback Section -->
-        <section id="sow-plan" class="mb-12 animated-section" style="animation-delay: 0.4s;">
-            <div class="kpi-card p-6 md:p-8">
-                <h2 class="scheme-header text-primary">II. Term 4 Data-Driven Unit Plan</h2>
-
-                <div id="sow-plan-content" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    
-                    <!-- Left: Generated SOW Plan -->
-                    <div class="lg:col-span-2 space-y-6">
-                        <h3 class="text-2xl font-extrabold text-secondary mb-4" id="unit-title-display">Unit Plan: (Select Subject Above)</h3>
-                        
-                        <div class="plan-step p-4 pl-6 space-y-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-                            <p class="text-sm font-bold uppercase text-primary">Focus KPI (Lowest Score / Largest Drop):</p>
-                            <p class="text-lg" id="sow-focus-kpi">...</p>
-                        </div>
-                        
-                        <div class="plan-step p-4 pl-6 space-y-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-                            <p class="text-sm font-bold uppercase text-primary">Key Teaching Objective:</p>
-                            <p class="text-lg" id="sow-objective">...</p>
-                        </div>
-                        
-                        <div class="plan-step p-4 pl-6 space-y-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-                            <p class="text-sm font-bold uppercase text-primary">Suggested Activity / Strategy:</p>
-                            <p class="text-lg" id="sow-activity">...</p>
-                        </div>
-                        
-                        <div class="plan-step p-4 pl-6 space-y-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-                            <p class="text-sm font-bold uppercase text-primary">Success Metric (Target for next Term):</p>
-                            <p class="text-lg" id="sow-metric">...</p>
-                        </div>
-                    </div>
-
-                    <!-- Right: Qualitative Feedback Analysis -->
-                    <div class="lg:col-span-1 bg-accent-soft p-6 rounded-xl space-y-4">
-                        <h3 class="text-2xl font-bold text-primary">III. Student Voice: Improvement Suggestions</h3>
-                        
-                        <div class="bg-primary/10 dark:bg-gray-700 p-3 rounded-lg border-l-4 border-primary">
-                            <p class="text-lg font-bold text-primary">Core Theme:</p>
-                            <p class="text-md text-gray-700 dark:text-gray-300" id="sow-qualitative-theme">...</p>
-                        </div>
-
-                        <p class="text-sm font-semibold mt-4 text-gray-600 dark:text-gray-300">Raw Feedback Points:</p>
-                        <ul id="improvement-list" class="list-disc pl-5 space-y-1 text-sm text-gray-700 dark:text-gray-400">
-                            <li>Feedback will appear here...</li>
-                        </ul>
-                    </div>
-                </div>
+            <div className="min-h-[60vh] p-4 rounded-lg shadow-inner" style={{ backgroundColor: '#1A4314', border: `4px dashed ${FRAME_BROWN}`, color: CHALK_WHITE }}>
+              {activeTab === 'summary' && <SummaryView />}
+              {activeTab === 'raw' && <RawDataView />}
             </div>
-        </section>
-        
-    </main>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+};
 
-    <script type="module">
-        // Global Constants
-        const T1_FILE = "Student Feedback 2025 T1 (Responses) - Form responses 1.csv";
-        const T3_FILE = "Student Feedback 2025 T3 (Responses) - Form responses 1.csv";
-        const KPI_MAPPING = {
-            'Clarity': { index: 2, positive: ['Very Clear', 'Clear'] },
-            'Interest': { index: 3, positive: ['Very Interesting', 'Interesting'] },
-            'Variety': { index: 4, positive: ['Always', 'Often'] },
-            'Participation': { index: 5, positive: ['Always', 'Often'] },
-            'Engagement': { index: 7, positive: ['A Lot', 'Often'] },
-        };
-        const IMPROVEMENT_COLUMN_INDEX = 13; // 'What do you think could be improved about how I teach?'
-        const SUBJECT_COLUMN_INDEX = 1; // 'What do I teach you?'
-        const LLM_MODEL = 'gemini-2.5-flash-preview-05-20';
-        const apiKey = "";
-        
-        let allData = {}; // Stores all processed data: { subject: { T1: { KPI: score, count }, T3: { ... }, qualitative: [...] } }
-        let kpiChart;
-        
-        // --- Utility Functions ---
-
-        /**
-         * Parses a CSV string into an array of objects.
-         * @param {string} csvText - The raw CSV text.
-         * @returns {{headers: string[], rows: string[][]}}
-         */
-        function parseCSV(csvText) {
-            const lines = csvText.trim().split('\n');
-            if (lines.length === 0) return { headers: [], rows: [] };
-            
-            // Simple split by comma, ignoring quotes for simplicity given the data structure
-            const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-            const rows = lines.slice(1).map(line => {
-                // Handle commas inside quotes for a slightly better split
-                const regex = /(?:^|,)(\"(?:[^\"]+|\"\")*\"|[^,]*)/g;
-                let match;
-                let row = [];
-                while (match = regex.exec(line)) {
-                    // Remove leading comma, trim and remove surrounding quotes
-                    let value = match[1];
-                    if (value.startsWith(',')) value = value.substring(1);
-                    value = value.trim().replace(/^"|"$/g, '').replace(/""/g, '"');
-                    row.push(value);
-                }
-                return row;
-            }).filter(row => row.length > 0);
-            
-            return { headers, rows };
-        }
-
-        /**
-         * Fetches data for a given filename.
-         * @param {string} filename - The name of the file to fetch.
-         * @returns {Promise<string[][]>} - Promise resolving to array of data rows (excluding header).
-         */
-        async function loadCSV(filename) {
-            try {
-                // Since files are loaded via Canvas, we use a relative path based on the accessible filename.
-                const response = await fetch(`./${filename}`);
-                if (!response.ok) {
-                    throw new Error(`Failed to load file: ${response.statusText}`);
-                }
-                const csvText = await response.text();
-                const { rows } = parseCSV(csvText);
-                return rows;
-            } catch (error) {
-                console.error(`Error loading CSV file ${filename}:`, error);
-                // Return empty array on failure
-                return [];
-            }
-        }
-
-        /**
-         * Processes raw feedback rows to calculate KPI scores and extract qualitative comments.
-         * @param {string[][]} t1Data 
-         * @param {string[][]} t3Data 
-         * @returns {Object} Processed data object.
-         */
-        function processFeedback(t1Data, t3Data) {
-            const data = {};
-
-            const processTerm = (rows, term) => {
-                rows.forEach(row => {
-                    const subjects = row[SUBJECT_COLUMN_INDEX].split(',').map(s => s.trim()).filter(s => s);
-                    
-                    subjects.forEach(subject => {
-                        if (!data[subject]) {
-                            data[subject] = { T1: {}, T3: {}, qualitative: [] };
-                        }
-
-                        // Calculate KPI scores
-                        Object.entries(KPI_MAPPING).forEach(([kpi, { index, positive }]) => {
-                            const response = row[index];
-                            const isPositive = positive.includes(response);
-                            
-                            if (!data[subject][term][kpi]) {
-                                data[subject][term][kpi] = { favorable: 0, total: 0 };
-                            }
-
-                            if (response) {
-                                data[subject][term][kpi].total++;
-                                if (isPositive) {
-                                    data[subject][term][kpi].favorable++;
-                                }
-                            }
-                        });
-
-                        // Extract qualitative feedback for Term 3 only
-                        if (term === 'T3' && row[IMPROVEMENT_COLUMN_INDEX]) {
-                            const comment = row[IMPROVEMENT_COLUMN_INDEX].trim();
-                            if (comment.toLowerCase() !== 'nothing' && comment.toLowerCase() !== 'no' && comment.toLowerCase() !== '-' && comment) {
-                                data[subject].qualitative.push(comment);
-                            }
-                        }
-                    });
-                });
-            };
-
-            processTerm(t1Data, 'T1');
-            processTerm(t3Data, 'T3');
-
-            // Convert raw counts to percentage scores
-            Object.values(data).forEach(subjectData => {
-                ['T1', 'T3'].forEach(term => {
-                    Object.entries(subjectData[term]).forEach(([kpi, counts]) => {
-                        const score = counts.total > 0 ? Math.round((counts.favorable / counts.total) * 100) : 0;
-                        subjectData[term][kpi] = score;
-                    });
-                });
-            });
-
-            return data;
-        }
-
-        /**
-         * Analyzes KPI scores to find the weakest area for a given subject.
-         * @param {Object} subjectData - The T1 and T3 scores for one subject.
-         * @returns {{focusKPI: string, t3Score: number, t1Score: number}}
-         */
-        function getWeakestKPI(subjectData) {
-            let focusKPI = '';
-            let lowestScore = 101;
-            let largestDrop = 0;
-            let focusT1Score = 0;
-            let focusT3Score = 0;
-
-            Object.entries(subjectData.T3).forEach(([kpi, t3Score]) => {
-                const t1Score = subjectData.T1[kpi] || 0;
-                
-                // 1. Check for lowest current score (primary focus)
-                if (t3Score < lowestScore) {
-                    lowestScore = t3Score;
-                    focusKPI = kpi;
-                    focusT1Score = t1Score;
-                    focusT3Score = t3Score;
-                } 
-                // 2. Check for largest drop (secondary tie-breaker/critical area)
-                const drop = t1Score - t3Score;
-                if (drop > largestDrop && t3Score === lowestScore) { // Prioritize drop if scores are tied for lowest
-                    largestDrop = drop;
-                    focusKPI = kpi;
-                    focusT1Score = t1Score;
-                    focusT3Score = t3Score;
-                } else if (drop > largestDrop && focusKPI === '') { // If initial KPI hasn't been set, prioritize drop
-                     largestDrop = drop;
-                     focusKPI = kpi;
-                     focusT1Score = t1Score;
-                     focusT3Score = t3Score;
-                }
-            });
-
-            return { focusKPI, t3Score: focusT3Score, t1Score: focusT1Score };
-        }
-
-        // --- UI and Data Visualization ---
-
-        function drawChart(subjectData, subjectName) {
-            const ctx = document.getElementById('kpiComparisonChart').getContext('2d');
-            const kpis = Object.keys(KPI_MAPPING);
-            const t1Data = kpis.map(kpi => subjectData.T1[kpi]);
-            const t3Data = kpis.map(kpi => subjectData.T3[kpi]);
-
-            const weakest = getWeakestKPI(subjectData);
-
-            // Get computed colors to handle dark mode switch
-            const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim();
-            const lightAccentColor = getComputedStyle(document.documentElement).getPropertyValue('--color-light-accent').trim();
-            const dangerDarkColor = getComputedStyle(document.documentElement).getPropertyValue('--color-danger-dark').trim();
-
-
-            if (kpiChart) {
-                kpiChart.destroy();
-            }
-
-            kpiChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: kpis,
-                    datasets: [
-                        {
-                            label: 'Term 1 Favorable Rate (%)',
-                            data: t1Data,
-                            backgroundColor: lightAccentColor,
-                            borderRadius: 4,
-                        },
-                        {
-                            label: 'Term 3 Favorable Rate (%)',
-                            data: t3Data,
-                            backgroundColor: t3Data.map((score, index) => {
-                                // Highlight the lowest scoring KPI
-                                if (kpis[index] === weakest.focusKPI) {
-                                    return dangerDarkColor;
-                                }
-                                return primaryColor;
-                            }),
-                            borderRadius: 4,
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: `${subjectName} KPI Performance: Term 1 vs Term 3 (Favorable Rate %)`,
-                            color: getComputedStyle(document.body).color
-                        },
-                        legend: {
-                            position: 'top',
-                            labels: {
-                                color: getComputedStyle(document.body).color
-                            }
-                        },
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 100,
-                            title: {
-                                display: true,
-                                text: 'Favorable Rate (%)',
-                                color: getComputedStyle(document.body).color
-                            },
-                            ticks: {
-                                color: getComputedStyle(document.body).color
-                            },
-                            grid: {
-                                color: 'rgba(150, 150, 150, 0.2)'
-                            }
-                        },
-                        x: {
-                            ticks: {
-                                color: getComputedStyle(document.body).color
-                            },
-                            grid: {
-                                color: 'rgba(150, 150, 150, 0.2)'
-                            }
-                        }
-                    }
-                }
-            });
-
-            // Update Focus Summary
-            const drop = weakest.t1Score - weakest.t3Score;
-            const dropClass = drop > 0 ? 'low-score-highlight' : 'text-green-500';
-            const dropSign = drop > 0 ? '-' : (drop < 0 ? '+' : '');
-
-            document.getElementById('focus-summary').innerHTML = `
-                <p class="text-xl font-bold mb-2 text-primary">Focus KPI: <span class="low-score-highlight">${weakest.focusKPI}</span></p>
-                <div class="space-y-1">
-                    <p class="text-lg text-gray-800 dark:text-gray-200">Term 3 Score: <span class="font-extrabold text-2xl low-score-highlight">${weakest.t3Score}%</span></p>
-                    <p class="text-lg text-gray-600 dark:text-gray-400">Term 1 Score: <span class="font-semibold">${weakest.t1Score}%</span></p>
-                    <p class="text-lg text-gray-800 dark:text-gray-200">Change: <span class="font-bold ${dropClass}">${dropSign}${Math.abs(drop)}pp</span></p>
-                </div>
-                <button onclick="triggerSOWGeneration('${subjectName}')" class="mt-4 w-full bg-secondary text-primary py-2 rounded-lg font-bold hover:bg-opacity-80 transition duration-200 shadow-md">
-                    Generate Term 4 Unit Plan
-                </button>
-            `;
-        }
-
-        function renderSubjectSelector(subjects) {
-            const selector = document.getElementById('subject-selector');
-            selector.innerHTML = subjects.map(subject => `
-                <button class="subject-button" data-subject="${subject}" onclick="selectSubject('${subject}')">
-                    ${subject}
-                </button>
-            `).join('');
-            
-            // Auto-select the first subject
-            if (subjects.length > 0) {
-                selectSubject(subjects[0]);
-            }
-        }
-
-        function selectSubject(subjectName) {
-            document.querySelectorAll('.subject-button').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            document.querySelector(`[data-subject="${subjectName}"]`).classList.add('active');
-            
-            const subjectData = allData[subjectName];
-            drawChart(subjectData, subjectName);
-            
-            // Clear SOW content on subject change
-            document.getElementById('unit-title-display').innerText = `Unit Plan: ${subjectName}`;
-            document.getElementById('sow-focus-kpi').innerText = 'Select "Generate Term 4 Unit Plan" to create the SOW.';
-            document.getElementById('sow-objective').innerText = '...';
-            document.getElementById('sow-activity').innerText = '...';
-            document.getElementById('sow-metric').innerText = '...';
-            document.getElementById('sow-qualitative-theme').innerText = '...';
-            document.getElementById('improvement-list').innerHTML = `<li>${subjectData.qualitative.length > 0 ? 'Click "Generate" to analyze the student comments.' : 'No improvement suggestions provided for this subject.'}</li>`;
-        }
-
-        // --- Gemini API Integration ---
-
-        async function callGeminiApi(payload) {
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${LLM_MODEL}:generateContent?key=${apiKey}`;
-            const MAX_RETRIES = 3;
-            let delay = 1000;
-
-            for (let i = 0; i < MAX_RETRIES; i++) {
-                try {
-                    const response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-                    
-                    if (!response.ok) {
-                        if (response.status === 429 && i < MAX_RETRIES - 1) {
-                            console.log(`Rate limit exceeded. Retrying in ${delay / 1000}s...`);
-                            await new Promise(resolve => setTimeout(resolve, delay));
-                            delay *= 2; // Exponential backoff
-                            continue;
-                        }
-                        throw new Error(`API call failed with status: ${response.status}`);
-                    }
-
-                    const result = await response.json();
-                    const candidate = result.candidates?.[0];
-
-                    if (candidate && candidate.content?.parts?.[0]?.text) {
-                        const jsonText = candidate.content.parts[0].text;
-                        return JSON.parse(jsonText);
-                    } else {
-                        throw new Error("Gemini response was empty or malformed.");
-                    }
-                } catch (error) {
-                    console.error("Gemini API Error:", error);
-                    // On final failure, throw error.
-                    if (i === MAX_RETRIES - 1) throw error;
-                    // Otherwise, retry logic continues
-                }
-            }
-        }
-        
-        const SOW_SCHEMA = {
-            type: "OBJECT",
-            properties: {
-                focusKPI: { type: "STRING", description: "The single KPI identified as the focus area for improvement (e.g., 'Student Interest')." },
-                unitTitle: { type: "STRING", description: "A catchy, action-oriented title for the teaching unit (e.g., 'The Power of Play: Gamified Learning')." },
-                keyTeachingObjective: { type: "STRING", description: "The measurable objective for the term, directly addressing the focus KPI." },
-                suggestedActivity: { type: "STRING", description: "A detailed, practical classroom activity or strategy to address the objective and improve the KPI, explicitly referencing the qualitative feedback." },
-                successMetric: { type: "STRING", description: "A clear, measurable target for the next feedback cycle (e.g., 'Increase 'Interesting' responses for this KPI by 15%')." },
-                qualitativeTheme: { type: "STRING", description: "A summary theme derived from the improvement suggestions (e.g., 'Need for more real-world examples and practical tasks')." }
-            },
-            propertyOrdering: ["focusKPI", "unitTitle", "keyTeachingObjective", "suggestedActivity", "successMetric", "qualitativeTheme"]
-        };
-        
-        async function triggerSOWGeneration(subjectName) {
-            const subjectData = allData[subjectName];
-            const weakest = getWeakestKPI(subjectData);
-            const qualitativeSuggestions = subjectData.qualitative.join('; ');
-            
-            document.getElementById('loading-overlay').style.display = 'flex';
-            document.getElementById('loading-text').innerText = `Analyzing data and generating SOW for ${subjectName}...`;
-
-            const systemPrompt = `Act as a Head of Department and Curriculum Designer. Analyze the quantitative and qualitative feedback provided. The quantitative focus is ${weakest.focusKPI}. The qualitative feedback is a list of improvement suggestions. Create a structured Scheme of Work (SOW) unit plan for the next term in JSON format. The plan MUST directly address the focus KPI and incorporate the themes from the improvement suggestions. Keep all responses concise and professional.`;
-            
-            const userQuery = `The focus KPI to improve is '${weakest.focusKPI}' (current score: ${weakest.t3Score}%). The raw student improvement suggestions are: ${qualitativeSuggestions}`;
-            
-            const payload = {
-                contents: [{ parts: [{ text: userQuery }] }],
-                systemInstruction: { parts: [{ text: systemPrompt }] },
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: SOW_SCHEMA
-                }
-            };
-
-            try {
-                const sowPlan = await callGeminiApi(payload);
-                updateSOWDisplay(sowPlan, subjectData.qualitative);
-            } catch (error) {
-                console.error("Failed to generate SOW:", error);
-                document.getElementById('sow-focus-kpi').innerText = `Error: Failed to generate plan. Check console for details.`;
-                document.getElementById('sow-objective').innerText = `Please try again.`;
-                document.getElementById('unit-title-display').innerText = `Unit Plan: Generation Failed`;
-            } finally {
-                document.getElementById('loading-overlay').style.display = 'none';
-                document.getElementById('loading-text').innerText = 'Loading Data and Analyzing Feedback for SOW...';
-            }
-        }
-
-        function updateSOWDisplay(plan, rawSuggestions) {
-            document.getElementById('unit-title-display').innerText = `Unit Plan: ${plan.unitTitle || 'New Unit Focus'}`;
-            document.getElementById('sow-focus-kpi').innerHTML = `<span class="low-score-highlight">${plan.focusKPI || 'N/A'}</span>`;
-            document.getElementById('sow-objective').innerText = plan.keyTeachingObjective || 'Objective not generated.';
-            document.getElementById('sow-activity').innerText = plan.suggestedActivity || 'Activity not generated.';
-            document.getElementById('sow-metric').innerText = plan.successMetric || 'Metric not generated.';
-            document.getElementById('sow-qualitative-theme').innerText = plan.qualitativeTheme || 'Theme not generated.';
-
-            const list = document.getElementById('improvement-list');
-            list.innerHTML = rawSuggestions.length > 0 ? 
-                rawSuggestions.map(comment => `<li>${comment}</li>`).join('') :
-                '<li>No specific improvement suggestions were left by students.</li>';
-        }
-
-        // --- Initialization ---
-
-        async function init() {
-            document.getElementById('loading-overlay').style.display = 'flex';
-            
-            const [t1Rows, t3Rows] = await Promise.all([
-                loadCSV(T1_FILE),
-                loadCSV(T3_FILE)
-            ]);
-
-            if (t1Rows.length === 0 || t3Rows.length === 0) {
-                 document.getElementById('loading-text').innerText = 'Error: Failed to load one or both CSV files. Check filenames and console.';
-                 return;
-            }
-
-            allData = processFeedback(t1Rows, t3Rows);
-            const subjects = Object.keys(allData).sort();
-
-            if (subjects.length > 0) {
-                renderSubjectSelector(subjects);
-                document.getElementById('main-content').classList.remove('hidden');
-            } else {
-                document.getElementById('loading-text').innerText = 'Error: No valid subject data found in CSV files.';
-            }
-
-            document.getElementById('loading-overlay').style.display = 'none';
-        }
-
-        function toggleLightDark() {
-            const body = document.body;
-            const icon = document.getElementById('modeIcon');
-            body.classList.toggle('dark-mode');
-            
-            const selectedSubject = document.querySelector('.subject-button.active')?.dataset.subject;
-            
-            // Wait for CSS variables to update before redrawing chart
-            setTimeout(() => {
-                if (body.classList.contains('dark-mode')) {
-                    icon.innerHTML = '☀️'; // Sun icon for dark mode
-                    localStorage.setItem('theme', 'dark');
-                } else {
-                    icon.innerHTML = '🌙'; // Moon icon for light mode
-                    localStorage.setItem('theme', 'light');
-                }
-                
-                // Redraw chart to pick up new colors
-                if (selectedSubject) {
-                    drawChart(allData[selectedSubject], selectedSubject);
-                }
-            }, 50); 
-        }
-
-        // Apply saved mode on load
-        if (localStorage.getItem('theme') === 'dark') {
-            document.body.classList.add('dark-mode');
-            document.getElementById('modeIcon').innerHTML = '☀️';
-        }
-        
-        // Expose functions globally for HTML buttons
-        window.selectSubject = selectSubject;
-        window.triggerSOWGeneration = triggerSOWGeneration;
-        window.toggleLightDark = toggleLightDark;
-
-        init();
-    </script>
-</body>
-</html>
+export default App;
