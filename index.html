@@ -1,450 +1,368 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data-Driven Unit Planner</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-    <!-- Lucide Icons -->
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-    </style>
-</head>
-<body class="bg-gray-50 min-h-screen text-gray-800">
-    <div id="app" class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-        <!-- Header -->
-        <header class="text-center pb-6 mb-8 border-b-2 border-indigo-200">
-            <h1 class="text-4xl sm:text-5xl font-extrabold text-indigo-700 tracking-tight">
-                Data-Driven Unit Planner
-            </h1>
-            <p class="mt-2 text-xl text-gray-600">
-                Analyze feedback & generate actionable Term 4 plans with AI.
-            </p>
-        </header>
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import Papa from 'papaparse';
+import { Search, Loader2, Upload, BarChart2, MessageSquare, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
 
-        <!-- Loading and Subject Selection -->
-        <div id="status-area" class="bg-white p-6 rounded-xl shadow-lg mb-8">
-            <div id="loading-message" class="flex items-center justify-center space-x-3 text-lg font-medium text-indigo-600">
-                <svg class="animate-spin h-5 w-5 mr-3 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span id="loader-text">Loading and Combining Feedback Data...</span>
-            </div>
-            
-            <div id="controls-area" class="hidden flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
-                <p id="data-summary" class="text-sm font-medium text-green-700"></p>
+// --- Theme: Clean & Modern (using Indigo as the primary accent) ---
+const PRIMARY_ACCENT = 'indigo-600';
+const BG_COLOR = 'gray-50';
+const CARD_BG = 'white';
+const TEXT_COLOR = 'gray-800';
 
-                <div class="flex items-center space-x-3">
-                    <label for="subject-select" class="font-medium text-gray-700">Select Subject:</label>
-                    <select id="subject-select" class="p-2 border border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition"></select>
-                    <button id="analyze-button" class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md disabled:opacity-50" disabled>
-                        Analyze Data
-                    </button>
-                </div>
-            </div>
-        </div>
+// Simple utility to find the most frequent value in an array
+const getMode = (arr) => {
+    const counts = arr.reduce((acc, value) => {
+        acc[value] = (acc[value] || 0) + 1;
+        return acc;
+    }, {});
+    let maxCount = 0;
+    let mode = '';
+    for (const key in counts) {
+        if (counts[key] > maxCount) {
+            maxCount = counts[key];
+            mode = key;
+        }
+    }
+    return mode;
+};
 
-        <!-- Main Analysis and Output Area -->
-        <div id="main-content" class="grid grid-cols-1 lg:grid-cols-3 gap-8 hidden">
-            <!-- Column 1 & 2: Feedback Analysis -->
-            <div class="lg:col-span-2 space-y-8">
-                <h2 class="text-3xl font-bold text-gray-800">Feedback Analysis</h2>
-                
-                <!-- Metric Cards -->
-                <div id="metric-cards" class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <!-- Cards will be populated here -->
-                </div>
+// --- Main App Component ---
+const App = () => {
+  const [file, setFile] = useState(null);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [fileName, setFileName] = useState('');
+  const [activeTab, setActiveTab] = useState('summary');
+  const [showHelp, setShowHelp] = useState(false);
 
-                <!-- Open Feedback -->
-                <div class="grid md:grid-cols-2 gap-4">
-                    <!-- Note: max-h-96 now applied to show more content -->
-                    <div class="bg-white p-5 rounded-xl shadow-lg border-t-4 border-green-500">
-                        <h3 class="text-xl font-bold mb-3 flex items-center text-green-700">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.765l-2.03-2.03m0 0l-2.03-2.03M16.765 7.97V4"></path></svg>
-                            All Positive Comments
-                        </h3>
-                        <ul id="likes-list" class="list-disc pl-5 space-y-2 text-gray-700 max-h-96 overflow-y-auto"></ul>
-                    </div>
-                    
-                    <div class="bg-white p-5 rounded-xl shadow-lg border-t-4 border-red-500">
-                        <h3 class="text-xl font-bold mb-3 flex items-center text-red-700">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.765l-2.03-2.03m0 0l-2.03-2.03M16.765 7.97V4"></path></svg>
-                            All Areas for Improvement
-                        </h3>
-                        <ul id="improvements-list" class="list-disc pl-5 space-y-2 text-gray-700 max-h-96 overflow-y-auto"></ul>
-                    </div>
-                </div>
-            </div>
+  const handleFileChange = (event) => {
+    const uploadedFile = event.target.files[0];
+    if (uploadedFile && uploadedFile.name.endsWith('.csv')) {
+      setFile(uploadedFile);
+      setFileName(uploadedFile.name);
+      setData(null);
+      setError('');
+    } else {
+      setError('Please upload a valid CSV file.');
+      setFile(null);
+      setFileName('');
+    }
+  };
 
-            <!-- Column 3: AI Generator -->
-            <div class="lg:col-span-1 space-y-6 bg-white p-6 rounded-xl shadow-2xl sticky top-4 h-fit">
-                <h2 class="text-3xl font-bold text-indigo-800 mb-4">
-                    Generate Term 4 Unit Plan
-                </h2>
+  const parseCSV = useCallback(() => {
+    if (!file) return;
 
-                <p class="text-sm text-gray-600">
-                    Use the analyzed feedback to generate a targeted Unit Plan (Term 4) that addresses student concerns.
-                </p>
+    setLoading(true);
+    setError('');
 
-                <button id="generate-plan-button" class="w-full bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold text-lg hover:bg-indigo-700 transition shadow-lg shadow-indigo-500/50 disabled:opacity-50" disabled>
-                    Generate Plan
-                </button>
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        setLoading(false);
+        if (results.errors.length) {
+          setError('CSV parsing error. Check file format.');
+          console.error(results.errors);
+          return;
+        }
 
-                <!-- Plan Output Area -->
-                <div id="plan-output" class="mt-6 border-t pt-4 border-gray-200">
-                    <div id="plan-loader" class="hidden items-center justify-center space-x-3 text-indigo-600 py-10">
-                        <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <span>Generating plan, please wait...</span>
-                    </div>
-                    <div id="generated-content" class="prose max-w-none text-gray-700">
-                        <p class="text-center italic text-gray-400">Click 'Generate Plan' to create your data-driven curriculum.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
+        if (results.data.length === 0) {
+            setError('The CSV file is empty or contains no meaningful data.');
+            return;
+        }
 
-    </div>
-
-    <script>
-        // Global Data Store
-        let fullData = [];
-        let subjects = new Set();
-        let currentAnalysis = null;
-        const LLM_MODEL = "gemini-2.5-flash-preview-05-20";
-        const API_KEY = ""; // Kept empty as per instructions
-
-        // CSV File Contents (Hardcoded from user's provided snippets)
-        const csvFiles = [
-            { name: "Student Feedback 2025 T3 (Responses) - Form responses 1.csv", content: `Timestamp,What do I teach you?,How clearly do I explain the lessons?,How interesting are the lessons?,Do I use different ways to explain things? e.g. videos/activities/examples,Do I encourage you to ask questions or participate in class?,"How much do you enjoy participating in class activities? e.g. pair work, group work, class discussions",Do I make learning engaging and enjoyable?,How quickly do I give feedback on work or assignments?,Do I help you when you don’t understand something? ,How comfortable do you feel asking for help in class?,Do I create an environment where you feel safe and heard?,What do you like most about how I teach?,What do you think could be improved about how I teach?,Any other comments or suggestions for me?\r\n07/10/2025 16:19:25,Music,Clear,Interesting,Often,Always,Often,A Lot,Very Quickly,Always,Very Comfortable,Always,How supportive you are,Nothing,Nope\r\n07/10/2025 16:29:02,"Ako, Music",Clear,Neutral,Often,Often,Often,Often,Very Quickly,Always,Very Comfortable,Always,U are straight to the point and short and clear on explaining things,Unsure,Very quick to get back results and feedback \r\n07/10/2025 16:30:41,Music,Very Clear,Interesting,Sometimes,Often,Sometimes,Often,Very Quickly,Often,Very Comfortable,Always,How approachable and respectful you are to students. Treated like equals and how understanding you are.,"Certain days, certain topics in classes.",Nah\r\n15/10/2025 14:45:30,"Music, Digital Technology",Clear,Interesting,Sometimes,Always,A Lot,Often,Very Quickly,Always,Very Comfortable,Always,your laid back and you always try to see our point of views and if we don't understand you always try to explain it in a different way so we do understand  ,"maybe have more fun activities that are to do with learning espily with theory, like when we did quizlet, that was fun and engaging and it helped me and others learn a lot of theory...`},
-            { name: "Student Feedback 2025 T1 (Responses) - Form responses 1.csv", content: `Timestamp,What do I teach you?,How clearly do I explain the lessons?,How interesting are the lessons?,Do I use different ways to explain things? e.g. videos/activities/examples,Do I encourage you to ask questions or participate in class?,"How much do you enjoy participating in class activities? e.g. pair work, group work, class discussions",Do I make learning engaging and enjoyable?,How quickly do I give feedback on work or assignments?,Do I help you when you don’t understand something? ,How comfortable do you feel asking for help in class?,Do I create an environment where you feel safe and heard?,What do you like most about how I teach?,What do you think could be improved about how I teach?,Any other comments or suggestions for me?\r\n04/03/2025 15:43:06,Music,Clear,Interesting,Always,Always,A Lot,Often,Very Quickly,Always,Very Comfortable,Always,How comfortable it is. It's not a scary environment. The music room is just really chill and Phil is also great to be around and have as a teacher.,Nothing,Favourite teacher for sure \r\n04/03/2025 22:05:45,Ako,Very Clear,Neutral,Often,Sometimes,A Lot,Often,Quickly,Always,Comfortable,Often,Friendly and relatable,Not sure,No\r\n05/03/2025 09:18:13,Music,Clear,Interesting,Often,Always,Often,A Lot,Very Quickly,Always,Very Comfortable,Always,"Always help, and engaging",nothing,no\r\n14/03/2025 11:49:33,Music,Very Clear,Very Interesting,Always,Often,A Lot,Often,Quickly,Sometimes,Not Comfortable,Always,everything,nothing , let me game more in class ands not do any lreaning \r\n26/03/2025 12:50:51,Music,Clear,Interesting,Sometimes,Often,Often,Often,Quickly,Always,Comfortable,Always,you think of things in a teens  pov so it helps us understand better ,"i dont think anything needs to be inproved, you could maybe be strickter on kids who arnt doing as theyere asked but then they might not like you lol",no :) i think your great`},
-        ];
-
-        // --- Utility Functions ---
-
-        /** Finds the most frequent value in an array. */
-        function getMode(arr) {
-            const counts = arr.reduce((acc, value) => {
-                acc[value] = (acc[value] || 0) + 1;
-                return acc;
-            }, {});
-            let maxCount = 0;
-            let mode = '';
-            for (const key in counts) {
-                if (counts[key] > maxCount) {
-                    maxCount = counts[key];
-                    mode = key;
-                }
+        // Clean-up/standardization
+        const cleanedData = results.data.map(row => {
+            const newRow = {};
+            for (const key in row) {
+                const cleanKey = key.trim();
+                newRow[cleanKey] = (row[key] || '').trim();
             }
-            return mode || 'N/A';
-        }
+            return newRow;
+        }).filter(row => Object.values(row).some(val => val !== '')); 
 
-        /** Simple markdown to HTML conversion for LLM output. */
-        function markdownToHtml(markdown) {
-            // Convert headers
-            let html = markdown.replace(/^###\s*(.*)$/gm, '<h3>$1</h3>');
-            html = html.replace(/^##\s*(.*)$/gm, '<h2>$1</h2>');
-            html = html.replace(/^#\s*(.*)$/gm, '<h1>$1</h1>');
-            // Convert bold/italic
-            html = html.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
-            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
-            // Convert unordered lists
-            html = html.replace(/^\s*-\s+(.*)$/gm, '<li>$1</li>');
-            html = html.replace(/((<li>.*<\/li>\n*)+)/g, '<ul>$1</ul>').replace(/<\/ul>\n<ul>/g, ''); // Wrap in <ul>
-            // Convert paragraphs (lines not starting with <h, <ul, <li)
-            html = html.split('\n').map(line => {
-                if (line.trim() && !line.startsWith('<h') && !line.startsWith('<ul') && !line.startsWith('<li')) {
-                    return `<p>${line}</p>`;
-                }
-                return line;
-            }).join('\n');
-            return html;
-        }
+        setData(cleanedData);
+      },
+      error: (error) => {
+        setLoading(false);
+        setError('Failed to process file: ' + error.message);
+      }
+    });
+  }, [file]);
 
-        /** Generates a base LLM analysis structure for a subject. */
-        function analyzeSubjectData(subjectName, data) {
-            const subjectData = data.filter(row => {
-                const taught = row['What do I teach you?'] || '';
-                return taught.split(',').map(s => s.trim()).includes(subjectName);
-            });
+  useEffect(() => {
+    if (file) {
+      parseCSV();
+    }
+  }, [file, parseCSV]);
 
-            const totalResponses = subjectData.length;
-            if (totalResponses === 0) return null;
+  // --- Data Analysis Logic (Based on common CSV headers) ---
+  const analysisSummary = useMemo(() => {
+    if (!data || data.length === 0) return null;
 
-            const keyMetrics = {
-                'Clarity': 'How clearly do I explain the lessons?',
-                'Engagement': 'How interesting are the lessons?',
-                'Differentiation': 'Do I use different ways to explain things? e.g. videos/activities/examples',
-                'Participation': 'Do I encourage you to ask questions or participate in class?',
-                'Comfort': 'How comfortable do you feel asking for help in class?',
-                'FeedbackSpeed': 'How quickly do I give feedback on work or assignments?',
-            };
+    const totalResponses = data.length;
+    
+    // Map friendly metric names to expected CSV column headers
+    const keyMetrics = {
+        'Clarity': 'How clearly do I explain the lessons?',
+        'Engagement': 'How interesting are the lessons?',
+        'Comfort': 'How comfortable do you feel asking for help in class?',
+        'Safety': 'Do I create an environment where you feel safe and heard?',
+        'FeedbackSpeed': 'How quickly do I give feedback on work or assignments?',
+    };
 
-            const metricResults = {};
+    const metricResults = {};
 
-            for (const [metricKey, columnHeader] of Object.entries(keyMetrics)) {
-                const responses = subjectData.map(row => row[columnHeader]).filter(v => v);
-                metricResults[metricKey] = {
-                    mode: getMode(responses),
-                    count: responses.length,
-                    responses: responses
-                };
-            }
-
-            const likes = subjectData.map(row => row['What do you like most about how I teach?']).filter(v => v);
-            const improvements = subjectData.map(row => row['What do you think could be improved about how I teach?']).filter(v => v && v.toLowerCase() !== 'nothing' && v.toLowerCase() !== 'nope' && v.toLowerCase() !== '-');
-
-            return {
-                subjectName,
-                totalResponses,
-                metricResults,
-                likes,
-                improvements
-            };
-        }
+    for (const [metricKey, columnHeader] of Object.entries(keyMetrics)) {
+        const responses = data.map(row => row[columnHeader]).filter(v => v);
         
-        // --- DOM Update Functions ---
-
-        function updateMetricCards(analysis) {
-            const container = document.getElementById('metric-cards');
-            container.innerHTML = '';
-            
-            const metricColors = {
-                'Clarity': 'bg-indigo-100 border-indigo-500 text-indigo-700',
-                'Engagement': 'bg-pink-100 border-pink-500 text-pink-700',
-                'Differentiation': 'bg-yellow-100 border-yellow-500 text-yellow-700',
-                'Participation': 'bg-green-100 border-green-500 text-green-700',
-                'Comfort': 'bg-purple-100 border-purple-500 text-purple-700',
-                'FeedbackSpeed': 'bg-teal-100 border-teal-500 text-teal-700',
+        if (responses.length > 0) {
+            metricResults[metricKey] = {
+                mode: getMode(responses),
+                count: responses.length,
+                responses: responses
             };
-
-            Object.entries(analysis.metricResults).forEach(([key, result]) => {
-                const cardClass = metricColors[key] || 'bg-gray-100 border-gray-500 text-gray-700';
-                const cardHtml = `
-                    <div class="p-4 rounded-xl shadow-md border-b-4 ${cardClass}">
-                        <p class="text-sm font-semibold uppercase">${key}</p>
-                        <p class="text-3xl font-bold mt-1">${result.mode}</p>
-                        <p class="text-xs opacity-70 mt-1">${result.count} responses</p>
-                    </div>
-                `;
-                container.insertAdjacentHTML('beforeend', cardHtml);
-            });
+        } else {
+            metricResults[metricKey] = { mode: 'N/A', count: 0, responses: [] };
         }
+    }
+    
+    // Analyze open feedback
+    const likes = data.map(row => row['What do you like most about how I teach?']).filter(v => v);
+    const improvements = data.map(row => row['What do you think could be improved about how I teach?']).filter(v => v && v.toLowerCase() !== 'nothing' && v.toLowerCase() !== 'nope' && v.toLowerCase() !== '-');
 
-        function updateFeedbackLists(analysis) {
-            const likesList = document.getElementById('likes-list');
-            const improvementsList = document.getElementById('improvements-list');
-            
-            const renderList = (element, items, defaultMsg) => {
-                element.innerHTML = '';
-                if (items.length > 0) {
-                    // Renders ALL items now, not just the top 5
-                    items.forEach(item => {
-                        element.insertAdjacentHTML('beforeend', `<li>${item}</li>`);
-                    });
-                } else {
-                    element.innerHTML = `<li class="italic text-gray-400">${defaultMsg}</li>`;
-                }
-            };
+    return {
+        totalResponses,
+        metricResults,
+        likes,
+        improvements
+    };
+  }, [data]);
 
-            renderList(likesList, analysis.likes, 'No specific positive feedback provided.');
-            renderList(improvementsList, analysis.improvements, 'No specific areas for improvement provided.');
+  // --- Rendering Components ---
 
-            document.getElementById('generate-plan-button').disabled = false;
+  const CleanButton = ({ children, onClick, active, icon: Icon, disabled = false }) => (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`
+        flex items-center justify-center px-4 py-2 mx-1
+        text-sm font-semibold tracking-wide uppercase
+        rounded-lg transition-all duration-200 whitespace-nowrap
+        ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02] active:scale-[0.98]'}
+        ${active
+          ? `bg-${PRIMARY_ACCENT} text-white shadow-lg shadow-indigo-500/50`
+          : `bg-gray-200 text-${TEXT_COLOR} hover:bg-gray-300 border border-gray-300`
         }
+      `}
+    >
+      {Icon && <Icon className="w-4 h-4 mr-2" />}
+      {children}
+    </button>
+  );
 
-        // --- Data Loading and Initialization ---
+  // Clean Card component with white background and subtle shadow
+  const Card = ({ title, children, icon: Icon, className = '' }) => (
+    <div 
+        className={`p-6 rounded-xl shadow-lg h-full ${className}`} 
+        style={{ backgroundColor: CARD_BG }}
+    >
+      <h3 className={`text-xl font-bold mb-3 flex items-center border-b pb-2 text-${PRIMARY_ACCENT}`}>
+        {Icon && <Icon className="w-5 h-5 mr-3" />}
+        {title}
+      </h3>
+      <div className="text-gray-700">
+        {children}
+      </div>
+    </div>
+  );
 
-        function parseAndCombineData() {
-            let combinedData = [];
-            let totalResponses = 0;
-            const promises = csvFiles.map(file => {
-                return new Promise((resolve, reject) => {
-                    Papa.parse(file.content, {
-                        header: true,
-                        skipEmptyLines: true,
-                        complete: (results) => {
-                            if (results.errors.length) {
-                                console.error(`Error parsing ${file.name}:`, results.errors);
-                                return resolve([]);
-                            }
-                            totalResponses += results.data.length;
-                            resolve(results.data);
-                        },
-                        error: (error) => {
-                            console.error(`Failed to process ${file.name}:`, error);
-                            reject(error);
-                        }
-                    });
-                });
-            });
+  const SummaryView = () => {
+    if (!analysisSummary) return null;
 
-            Promise.all(promises).then(allResults => {
-                allResults.forEach(data => {
-                    combinedData = combinedData.concat(data.filter(row => 
-                        // Basic check to ensure the row has the key column for filtering
-                        (row['What do I teach you?'] || '').trim() !== '' 
-                    ));
-                });
-                
-                fullData = combinedData;
-                extractSubjects();
-                initializeUI(totalResponses);
+    const { totalResponses, metricResults, likes, improvements } = analysisSummary;
 
-            }).catch(e => {
-                document.getElementById('loader-text').textContent = 'Error loading data.';
-                console.error("Data loading failed:", e);
-            });
-        }
+    return (
+      <div className="space-y-6 p-4">
+        <h2 className={`text-3xl text-center mb-6 border-b pb-4 font-bold text-${TEXT_COLOR}`}>
+          Summary Analysis: {fileName}
+        </h2>
 
-        function extractSubjects() {
-            fullData.forEach(row => {
-                const taught = row['What do I teach you?'] || '';
-                taught.split(',').map(s => s.trim()).filter(s => s).forEach(s => subjects.add(s));
-            });
-        }
+        {/* Total Responses Card (Full Width) */}
+        <div className="grid grid-cols-1">
+            <Card title="Total Responses" icon={MessageSquare}>
+                <p className="text-5xl font-black text-center pt-2 text-indigo-700">{totalResponses}</p>
+                <p className="text-sm text-center opacity-70 mt-2">students shared their feedback</p>
+            </Card>
+        </div>
 
-        function initializeUI(totalResponses) {
-            document.getElementById('loading-message').classList.add('hidden');
-            document.getElementById('controls-area').classList.remove('hidden');
-            document.getElementById('data-summary').textContent = `Total combined responses loaded: ${totalResponses}.`;
+        {/* Key Metrics Cards (Responsive Grid Layout) */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            {Object.entries(metricResults).map(([key, result]) => (
+                <Card key={key} title={`${key} Metric`} icon={BarChart2}>
+                    <p className="text-4xl font-black text-indigo-600">{result.mode || 'N/A'}</p>
+                    <p className="text-sm opacity-70 mt-2">Most frequent response for this metric.</p>
+                </Card>
+            ))}
+        </div>
 
-            const select = document.getElementById('subject-select');
-            select.innerHTML = '<option value="" disabled selected>-- Select Subject --</option>';
-            
-            [...subjects].sort().forEach(subject => {
-                const option = document.createElement('option');
-                option.value = subject;
-                option.textContent = subject;
-                select.appendChild(option);
-            });
+        {/* Open Feedback Cards (Two-Column Layout) */}
+        <div className="grid gap-4 md:grid-cols-2">
+            <Card title="What Students Liked Most" icon={BookOpen}>
+                <ul className="list-disc pl-5 space-y-2 max-h-96 overflow-y-auto">
+                    {likes.length > 0 ? (
+                        likes.slice(0, 10).map((like, index) => <li key={index} className="opacity-90 italic">{like}</li>)
+                    ) : (
+                        <li className="opacity-70">No specific 'likes' feedback provided.</li>
+                    )}
+                </ul>
+                {likes.length > 10 && <p className="pt-2 text-sm opacity-70">... and {likes.length - 10} more comments.</p>}
+            </Card>
 
-            select.addEventListener('change', handleSubjectChange);
-            document.getElementById('analyze-button').addEventListener('click', runAnalysis);
-            document.getElementById('generate-plan-button').addEventListener('click', generateUnitPlan);
-        }
+            <Card title="Areas for Improvement" icon={Search}>
+                <ul className="list-disc pl-5 space-y-2 max-h-96 overflow-y-auto">
+                    {improvements.length > 0 ? (
+                        improvements.slice(0, 10).map((imp, index) => <li key={index} className="opacity-90 italic">{imp}</li>)
+                    ) : (
+                        <li className="opacity-70">No specific 'improvement' suggestions provided.</li>
+                    )}
+                </ul>
+                {improvements.length > 10 && <p className="pt-2 text-sm opacity-70">... and {improvements.length - 10} more suggestions.</p>}
+            </Card>
+        </div>
+      </div>
+    );
+  };
 
-        // --- Event Handlers ---
+  const RawDataView = () => (
+    <div className="p-4 overflow-x-auto">
+      <h2 className={`text-3xl mb-6 border-b pb-4 font-bold text-${TEXT_COLOR}`}>Raw Data Table ({data?.length} rows)</h2>
+      {data && data.length > 0 ? (
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="sticky top-0 z-10 bg-gray-50">
+            <tr>
+              {Object.keys(data[0]).map((header) => (
+                <th
+                  key={header}
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"
+                >
+                  {header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200 bg-white">
+            {data.slice(0, 100).map((row, rowIndex) => (
+              <tr key={rowIndex} className="hover:bg-indigo-50">
+                {Object.values(row).map((value, colIndex) => (
+                  <td
+                    key={colIndex}
+                    className="px-6 py-4 whitespace-nowrap text-sm text-gray-700"
+                  >
+                    {value}
+                  </td>
+                ))}
+              </tr>
+            ))}
+             {data.length > 100 && (
+                <tr>
+                    <td colSpan={Object.keys(data[0]).length} className="px-6 py-4 text-center text-sm italic text-gray-500">
+                        ... Showing first 100 rows only ...
+                    </td>
+                </tr>
+            )}
+          </tbody>
+        </table>
+      ) : (
+        <p className="text-xl text-center p-8 text-gray-500">No data available to display.</p>
+      )}
+    </div>
+  );
+  
+  const helpContent = (
+    <div className={`mt-4 p-4 rounded-lg bg-indigo-50 border border-indigo-200 space-y-4 text-gray-700`}>
+        <h4 className={`text-xl font-bold text-${PRIMARY_ACCENT}`}>How to Use This Analyzer</h4>
+        <ul className="list-disc pl-5 space-y-2 text-base">
+            <li>Click **'Upload CSV File'** and select one of your student feedback files (e.g., from a Google Form or Survey tool).</li>
+            <li>The app will process the file, and the **Summary / Preview** tab will become active, showing key metrics like **Clarity** and **Engagement**.</li>
+            <li>The analysis works by matching common column names found in standard feedback forms.</li>
+        </ul>
+    </div>
+  );
 
-        function handleSubjectChange(event) {
-            const subject = event.target.value;
-            if (subject) {
-                document.getElementById('analyze-button').disabled = false;
-                // Clear old analysis when subject changes
-                document.getElementById('main-content').classList.add('hidden');
-                document.getElementById('generated-content').innerHTML = '<p class="text-center italic text-gray-400">Click \'Generate Plan\' to create your data-driven curriculum.</p>';
-            }
-        }
+  return (
+    <div className={`min-h-screen p-2 sm:p-4 font-sans bg-${BG_COLOR}`}>
+      {/* Header Area */}
+      <header className={`text-center mb-8 border-b-2 pb-4 border-indigo-200 text-${TEXT_COLOR}`}>
+        <h1 className="text-5xl sm:text-6xl font-black tracking-tight text-indigo-700">
+          Feedback Analyzer
+        </h1>
+        <p className="text-xl mt-2 italic text-gray-600">
+          Get quick insights from your student data.
+        </p>
+      </header>
 
-        function runAnalysis() {
-            const selectedSubject = document.getElementById('subject-select').value;
-            if (!selectedSubject) return;
+      {/* Main Content Area */}
+      <main className="max-w-7xl mx-auto">
+        {/* Upload and Status Bar */}
+        <div className={`flex flex-col sm:flex-row items-center justify-between p-4 mb-4 rounded-xl shadow-md bg-white border border-gray-200`}>
+          
+          <div className="flex items-center space-x-4 mb-4 sm:mb-0">
+            <label className="cursor-pointer">
+              <input type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
+              <CleanButton icon={Upload} onClick={() => document.querySelector('input[type="file"]').click()}>
+                {fileName ? `Re-upload: ${fileName}` : 'Upload CSV File'}
+              </CleanButton>
+            </label>
+            <CleanButton icon={showHelp ? ChevronUp : ChevronDown} onClick={() => setShowHelp(prev => !prev)}>
+                {showHelp ? 'Hide Help' : 'Show Help'}
+            </CleanButton>
+          </div>
 
-            const analysis = analyzeSubjectData(selectedSubject, fullData);
+          <div className={`flex items-center text-lg text-right font-medium text-${TEXT_COLOR}`}>
+            {loading && (
+              <span className="flex items-center text-indigo-600">
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                Parsing data...
+              </span>
+            )}
+            {error && <span className="text-red-500">{error}</span>}
+            {data && !loading && !error && (
+              <span className="flex items-center text-green-600">
+                {data.length} records loaded successfully.
+              </span>
+            )}
+            {!file && !loading && !error && (
+                <span className="text-gray-500">
+                    Awaiting CSV file upload.
+                </span>
+            )}
+          </div>
+        </div>
 
-            if (analysis && analysis.totalResponses > 0) {
-                currentAnalysis = analysis;
-                updateMetricCards(analysis);
-                updateFeedbackLists(analysis);
-                document.getElementById('main-content').classList.remove('hidden');
-            } else {
-                alert('No data found for this subject.');
-                document.getElementById('main-content').classList.add('hidden');
-            }
-        }
+        {showHelp && helpContent}
+        
+        {/* Tabs and Analysis Area */}
+        {data && (
+          <div className="mt-8">
+            <div className="flex flex-wrap justify-center mb-6">
+              <CleanButton active={activeTab === 'summary'} onClick={() => setActiveTab('summary')} icon={BarChart2}>
+                Summary / Preview
+              </CleanButton>
+              <CleanButton active={activeTab === 'raw'} onClick={() => setActiveTab('raw')} icon={MessageSquare}>
+                Raw Data View
+              </CleanButton>
+            </div>
 
-        // --- LLM API Logic ---
+            <div className={`min-h-[60vh] p-4 rounded-xl shadow-xl bg-${CARD_BG} border border-indigo-100`}>
+              {activeTab === 'summary' && <SummaryView />}
+              {activeTab === 'raw' && <RawDataView />}
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+};
 
-        async function generateUnitPlan() {
-            if (!currentAnalysis) return;
-
-            const button = document.getElementById('generate-plan-button');
-            const loader = document.getElementById('plan-loader');
-            const outputDiv = document.getElementById('generated-content');
-
-            button.disabled = true;
-            loader.classList.remove('hidden');
-            outputDiv.innerHTML = '';
-
-            const analysis = currentAnalysis;
-            
-            const systemPrompt = "You are an expert secondary school curriculum designer and instructional coach. Your task is to generate a comprehensive, actionable Unit Plan for Term 4 based on the student feedback provided. The plan must specifically address the 'Areas for Improvement' identified by the students by integrating new teaching strategies and assessment methods. Focus on practical, engaging solutions. Structure your response using H2 (##) and H3 (###) headers and bullet points.";
-
-            const userQuery = `
-                Generate a Term 4 Unit Plan for the subject: ${analysis.subjectName}.
-                The Unit Plan should be designed for a typical 8-week term and must be actionable.
-
-                The plan should include the following sections in order:
-                1. Unit Goal (1-2 sentences: overall learning outcome)
-                2. Data Snapshot (Summary of key student feedback findings)
-                3. Focus Areas for Term 4 (Must address student feedback and suggest specific, new strategies)
-                4. Recommended Activities (3 specific, high-engagement, differentiated activities)
-                5. Assessment Strategy (A mix of formative and summative, related to the focus areas)
-
-                ---
-                Student Feedback Summary (Must be incorporated and addressed in the plan):
-                - Total Responses: ${analysis.totalResponses}
-                - Most Common Clarity Feedback: ${analysis.metricResults.Clarity.mode}
-                - Most Common Engagement Feedback: ${analysis.metricResults.Engagement.mode}
-                - Most Common Comfort Feedback: ${analysis.metricResults.Comfort.mode}
-                - Top 3 Likes: ${analysis.likes.slice(0, 3).join('; ')}
-                - Top 3 Improvements: ${analysis.improvements.slice(0, 3).join('; ')}
-            `;
-
-            const payload = {
-                contents: [{ parts: [{ text: userQuery }] }],
-                systemInstruction: { parts: [{ text: systemPrompt }] },
-            };
-
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${LLM_MODEL}:generateContent?key=${API_KEY}`;
-
-            let attempts = 0;
-            const maxAttempts = 5;
-
-            while (attempts < maxAttempts) {
-                try {
-                    const response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (!response.ok) {
-                        if (response.status === 429 && attempts < maxAttempts - 1) {
-                            const delay = Math.pow(2, attempts) * 1000;
-                            await new Promise(res => setTimeout(res, delay));
-                            attempts++;
-                            continue;
-                        }
-                        throw new Error(`API request failed with status ${response.status}`);
-                    }
-
-                    const result = await response.json();
-                    const generatedText = result.candidates?.[0]?.content?.parts?.[0]?.text || 'Error: Could not retrieve generated text.';
-
-                    outputDiv.innerHTML = markdownToHtml(generatedText);
-                    break; 
-
-                } catch (error) {
-                    outputDiv.innerHTML = `<p class="text-red-500">An error occurred: ${error.message}. Please try again.</p>`;
-                    console.error("LLM Generation Error:", error);
-                    break;
-                } finally {
-                    loader.classList.add('hidden');
-                    button.disabled = false;
-                }
-            }
-        }
-
-        // --- Application Bootstrap ---
-        window.onload = parseAndCombineData;
-
-    </script>
-</body>
-</html>
+export default App;
