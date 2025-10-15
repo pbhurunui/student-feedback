@@ -244,7 +244,6 @@
             'Do I encourage you to ask questions or participate in class?': 'Encourage_Score',
             'How much do you enjoy participating in class activities? e.g. pair work, group work, class discussions': 'Participate_Score',
             'Do I make learning engaging and enjoyable?': 'Engaging_Score',
-            // IMPORTANT: Removed the trailing space from the key to match the cleaned header
             'Do I help you when you don’t understand something?': 'Help_Score', 
             'How comfortable do you feel asking for help in class?': 'Comfort_Score',
             'Do I create an environment where you feel safe and heard?': 'Safe_Score',
@@ -299,7 +298,7 @@
                 values.push(currentVal.trim());
 
                 if (values.length !== headers.length) {
-                    console.warn(`Row ${i+1} has ${values.length} values, but ${headers.length} headers. Skipping.`);
+                    // console.warn(`Row ${i+1} has ${values.length} values, but ${headers.length} headers. Skipping.`);
                     continue;
                 }
 
@@ -1108,20 +1107,33 @@
                 updateUIState(true, '1/3. Analyzing Student Feedback Data...');
                 const studentFeedbackResults = analyzeStudentFeedback(feedbackDataFrames);
                 
-                // 2. Process Observation Data (Using LLM if text is present)
-                let structuredObservationData = [];
+                // --- 2 & 3. Process Observation Data & Self-Assessment (CRITICAL BLOCK) ---
                 let observationResults = { overallMetrics: [], subjectAverages: {}, rawData: [] };
+                let selfAssessmentData = [];
+                let llmFailed = false;
+
                 if (observationText) {
-                    updateUIState(true, '2/3. Extracting Observation Data using LLM...');
-                    structuredObservationData = await extractObservationDataWithGemini(observationText);
-                    observationResults = analyzeObservationData(structuredObservationData);
+                    try {
+                        updateUIState(true, '2/3. Attempting to Extract Observation Data using LLM...');
+                        const structuredObservationData = await extractObservationDataWithGemini(observationText);
+                        observationResults = analyzeObservationData(structuredObservationData);
+                        
+                        updateUIState(true, '3/3. Generating Self-Assessment Report against College Standards...');
+                        selfAssessmentData = await generateSelfAssessment(studentFeedbackResults, observationResults, HC_QUALITY_MATRIX_CONTENT);
+                        
+                    } catch (error) {
+                        console.error("LLM Analysis Error (403 or other):", error);
+                        llmFailed = true;
+                        // Use a specific error message for the 403 or general API failure
+                        const errorMsg = error.message && error.message.includes("403") 
+                            ? "API Access Denied (403). Cannot process Observation Text or Self-Assessment." 
+                            : `LLM Processing Failed. Cannot process Observation Text or Self-Assessment: ${error.message.substring(0, 80)}...`;
+
+                        // The UI will be updated with this error message later.
+                    }
                 }
                 
-                // 3. Generate Self-Assessment
-                updateUIState(true, '3/3. Generating Self-Assessment Report against College Standards...');
-                const selfAssessmentData = await generateSelfAssessment(studentFeedbackResults, observationResults, HC_QUALITY_MATRIX_CONTENT);
-
-                // 4. Update Global Results and Render
+                // 4. Update Global Results and Render the Dashboard
                 analysisResults.studentFeedbackData = studentFeedbackResults;
                 analysisResults.observationData = observationResults;
                 analysisResults.selfAssessment = selfAssessmentData;
@@ -1132,17 +1144,17 @@
                 renderObservationMetrics(observationResults.overallMetrics);
                 renderSelfAssessment(selfAssessmentData);
 
-                updateUIState(false, 'Analysis and Self-Assessment completed successfully! Dashboard updated.');
+                // Final UI state update
+                if (llmFailed) {
+                     updateUIState(false, "Dashboard Updated! Note: The LLM features (Observation Metrics and Self-Assessment) failed due to an API access error. Check CSV data above.", true);
+                } else {
+                    updateUIState(false, 'Analysis and Self-Assessment completed successfully! Dashboard updated.');
+                }
 
             } catch (error) {
-                console.error("Analysis Error:", error);
-                let userMessage = error.message || error;
-                if (userMessage.includes("LLM returned an invalid candidate structure")) {
-                    userMessage = "LLM Extraction Failed: The observation text was too ambiguous or empty. Please ensure the text contains subject, term, and clear feedback on Pace, Engagement, and Management (1-5 scores or descriptive text).";
-                } else if (userMessage.includes("Error parsing")) {
-                    userMessage = `Data Parsing Failed: Check if your CSV files are correctly formatted. ${userMessage}`;
-                }
-                updateUIState(false, `Analysis failed: ${userMessage}.`, true);
+                // This catch handles errors in CSV parsing (step 1)
+                console.error("Critical Analysis Error (CSV Parsing):", error);
+                updateUIState(false, `Critical failure during CSV processing: ${error.message}. Please check your CSV files and try again.`, true);
             }
         };
 
