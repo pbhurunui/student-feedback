@@ -3,439 +3,449 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blackboard Teaching Analysis</title>
+    <title>Data-Driven Unit Planner</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <!-- Lucide Icons -->
     <style>
-        /* Blackboard Theme Styles */
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #2E5041; /* Deep green-black for the board */
-            color: #FFFDE7; /* Chalk white/yellow */
-            min-height: 100vh;
-            padding: 2rem 0;
-            display: flex;
-            justify-content: center;
-        }
-
-        .chalkboard-container {
-            width: 100%;
-            max-width: 1200px;
-            padding: 2rem;
-            border: 12px solid #5C3A21; /* Wooden frame */
-            border-radius: 10px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.4);
-        }
-
-        .chalk {
-            color: #FFFDE7;
-        }
-
-        .chalk-header {
-            color: #F0E68C; /* Slightly brighter yellow for headings */
-            text-shadow: 1px 1px 0 #000;
-            border-bottom: 2px solid #A0A0A0; /* Chalk line */
-            padding-bottom: 0.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .chalk-input {
-            background-color: rgba(0, 0, 0, 0.3); /* Transparent dark overlay */
-            border: 2px solid #5C3A21;
-            color: #FFFDE7;
-            resize: vertical;
-            min-height: 200px;
-            box-shadow: inset 0 0 5px rgba(255, 255, 255, 0.2);
-        }
-
-        .chalk-button {
-            background-color: #5C3A21; /* Brown button */
-            color: #FFFDE7;
-            text-shadow: 1px 1px 0 #000;
-            border: 2px solid #7D5B3C;
-            transition: all 0.1s;
-            box-shadow: 2px 2px 0 #3C2314;
-        }
-
-        .chalk-button:hover {
-            background-color: #7D5B3C;
-            box-shadow: 1px 1px 0 #3C2314;
-            transform: translateY(1px) translateX(1px);
-        }
-
-        .chalk-button:active {
-            box-shadow: none;
-            transform: translateY(2px) translateX(2px);
-        }
-
-        .bar-container {
-            height: 12px;
-            background-color: rgba(255, 255, 255, 0.1);
-            border-radius: 6px;
-            overflow: hidden;
-        }
-
-        .bar {
-            background-color: #A0A0A0; /* Chalk Gray bar */
-            height: 100%;
-            transition: width 0.5s ease-out;
-            border-radius: 6px;
-        }
-
-        /* Markdown Styling for LLM Output */
-        #analysis-output h1 {
-            color: #F0E68C;
-            font-size: 1.5rem;
-            margin-top: 2rem;
-            border-bottom: 1px dashed #A0A0A0;
-            padding-bottom: 0.5rem;
-        }
-        #analysis-output h2 {
-            color: #FFFDE7;
-            font-size: 1.25rem;
-            margin-top: 1rem;
-            margin-bottom: 0.5rem;
-        }
-        #analysis-output p {
-            margin-bottom: 1rem;
-        }
-        #analysis-output ul {
-            list-style-type: none;
-            padding-left: 1rem;
-        }
-        #analysis-output li:before {
-            content: "•";
-            color: #A0A0A0;
-            display: inline-block;
-            width: 1em;
-            margin-left: -1em;
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body { font-family: 'Inter', sans-serif; }
     </style>
 </head>
-<body class="p-4 md:p-8">
+<body class="bg-gray-50 min-h-screen text-gray-800">
+    <div id="app" class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <!-- Header -->
+        <header class="text-center pb-6 mb-8 border-b-2 border-indigo-200">
+            <h1 class="text-4xl sm:text-5xl font-extrabold text-indigo-700 tracking-tight">
+                Data-Driven Unit Planner
+            </h1>
+            <p class="mt-2 text-xl text-gray-600">
+                Analyze feedback & generate actionable Term 4 plans with AI.
+            </p>
+        </header>
 
-<div class="chalkboard-container">
-    <h1 class="text-3xl font-bold chalk-header mb-8 text-center">Teaching Feedback Blackboard Analysis</h1>
+        <!-- Loading and Subject Selection -->
+        <div id="status-area" class="bg-white p-6 rounded-xl shadow-lg mb-8">
+            <div id="loading-message" class="flex items-center justify-center space-x-3 text-lg font-medium text-indigo-600">
+                <svg class="animate-spin h-5 w-5 mr-3 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span id="loader-text">Loading and Combining Feedback Data...</span>
+            </div>
+            
+            <div id="controls-area" class="hidden flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
+                <p id="data-summary" class="text-sm font-medium text-green-700"></p>
 
-    <!-- Data Input Panel -->
-    <div id="input-panel" class="mb-8 p-4 border border-dashed border-gray-500 rounded-lg">
-        <label for="csv-input" class="block mb-2 font-semibold chalk">Paste CSV Data Below (Live Update)</label>
-        <textarea id="csv-input" class="w-full chalk-input p-3 text-sm rounded-md" placeholder="Paste your CSV content here from the spreadsheet (including the header row)..."></textarea>
-        <button id="analyze-button" class="chalk-button px-6 py-2 rounded-lg mt-4 w-full md:w-auto font-bold">Analyze & Update Blackboard</button>
-        <p class="text-xs mt-2 text-gray-400">The first analysis runs on the pre-loaded data. Use this box to update the analysis with new data.</p>
-    </div>
-
-    <!-- Quantitative Metrics Panel -->
-    <h2 class="text-2xl font-bold chalk-header mb-6">1. Quantitative Metrics</h2>
-    <div id="quantitative-output" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-        <div id="summary-section" class="col-span-1 md:col-span-2">
-            <p class="text-xl font-semibold mb-4 text-center text-gray-300">Total Responses: <span id="response-count" class="text-2xl text-[#F0E68C]">0</span></p>
-            <div id="subject-breakdown" class="flex flex-wrap justify-center space-x-4"></div>
+                <div class="flex items-center space-x-3">
+                    <label for="subject-select" class="font-medium text-gray-700">Select Subject:</label>
+                    <select id="subject-select" class="p-2 border border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition"></select>
+                    <button id="analyze-button" class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md disabled:opacity-50" disabled>
+                        Analyze Data
+                    </button>
+                </div>
+            </div>
         </div>
+
+        <!-- Main Analysis and Output Area -->
+        <div id="main-content" class="grid grid-cols-1 lg:grid-cols-3 gap-8 hidden">
+            <!-- Column 1 & 2: Feedback Analysis -->
+            <div class="lg:col-span-2 space-y-8">
+                <h2 class="text-3xl font-bold text-gray-800">Feedback Analysis</h2>
+                
+                <!-- Metric Cards -->
+                <div id="metric-cards" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <!-- Cards will be populated here -->
+                </div>
+
+                <!-- Open Feedback -->
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="bg-white p-5 rounded-xl shadow-lg border-t-4 border-green-500">
+                        <h3 class="text-xl font-bold mb-3 flex items-center text-green-700">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.765l-2.03-2.03m0 0l-2.03-2.03M16.765 7.97V4"></path></svg>
+                            Top Likes
+                        </h3>
+                        <ul id="likes-list" class="list-disc pl-5 space-y-2 text-gray-700 max-h-56 overflow-y-auto"></ul>
+                    </div>
+                    
+                    <div class="bg-white p-5 rounded-xl shadow-lg border-t-4 border-red-500">
+                        <h3 class="text-xl font-bold mb-3 flex items-center text-red-700">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.765l-2.03-2.03m0 0l-2.03-2.03M16.765 7.97V4"></path></svg>
+                            Areas for Improvement
+                        </h3>
+                        <ul id="improvements-list" class="list-disc pl-5 space-y-2 text-gray-700 max-h-56 overflow-y-auto"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Column 3: AI Generator -->
+            <div class="lg:col-span-1 space-y-6 bg-white p-6 rounded-xl shadow-2xl sticky top-4 h-fit">
+                <h2 class="text-3xl font-bold text-indigo-800 mb-4">
+                    Generate Term 4 Unit Plan
+                </h2>
+
+                <p class="text-sm text-gray-600">
+                    Use the analyzed feedback to generate a targeted Unit Plan (Term 4) that addresses student concerns.
+                </p>
+
+                <button id="generate-plan-button" class="w-full bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold text-lg hover:bg-indigo-700 transition shadow-lg shadow-indigo-500/50 disabled:opacity-50" disabled>
+                    Generate Plan
+                </button>
+
+                <!-- Plan Output Area -->
+                <div id="plan-output" class="mt-6 border-t pt-4 border-gray-200">
+                    <div id="plan-loader" class="hidden items-center justify-center space-x-3 text-indigo-600 py-10">
+                        <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Generating plan, please wait...</span>
+                    </div>
+                    <div id="generated-content" class="prose max-w-none text-gray-700">
+                        <p class="text-center italic text-gray-400">Click 'Generate Plan' to create your data-driven curriculum.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
-    <!-- Qualitative Analysis Panel (LLM Output) -->
-    <h2 class="text-2xl font-bold chalk-header mb-6">2. Qualitative Analysis (Themed Feedback)</h2>
-    <div id="analysis-output" class="p-6 rounded-lg bg-black bg-opacity-30">
-        <p id="analysis-status" class="text-center italic text-lg text-gray-400">
-            Click 'Analyze & Update Blackboard' to process feedback themes.
-        </p>
-    </div>
+    <script>
+        // Global Data Store
+        let fullData = [];
+        let subjects = new Set();
+        let currentAnalysis = null;
+        const LLM_MODEL = "gemini-2.5-flash-preview-05-20";
+        const API_KEY = ""; // Kept empty as per instructions
 
-</div>
+        // CSV File Contents (Hardcoded from user's provided snippets)
+        const csvFiles = [
+            { name: "Student Feedback 2025 T3 (Responses) - Form responses 1.csv", content: `Timestamp,What do I teach you?,How clearly do I explain the lessons?,How interesting are the lessons?,Do I use different ways to explain things? e.g. videos/activities/examples,Do I encourage you to ask questions or participate in class?,"How much do you enjoy participating in class activities? e.g. pair work, group work, class discussions",Do I make learning engaging and enjoyable?,How quickly do I give feedback on work or assignments?,Do I help you when you don’t understand something? ,How comfortable do you feel asking for help in class?,Do I create an environment where you feel safe and heard?,What do you like most about how I teach?,What do you think could be improved about how I teach?,Any other comments or suggestions for me?\r\n07/10/2025 16:19:25,Music,Clear,Interesting,Often,Always,Often,A Lot,Very Quickly,Always,Very Comfortable,Always,How supportive you are,Nothing,Nope\r\n07/10/2025 16:29:02,"Ako, Music",Clear,Neutral,Often,Often,Often,Often,Very Quickly,Always,Very Comfortable,Always,U are straight to the point and short and clear on explaining things,Unsure,Very quick to get back results and feedback \r\n07/10/2025 16:30:41,Music,Very Clear,Interesting,Sometimes,Often,Sometimes,Often,Very Quickly,Often,Very Comfortable,Always,How approachable and respectful you are to students. Treated like equals and how understanding you are.,"Certain days, certain topics in classes.",Nah\r\n15/10/2025 14:45:30,"Music, Digital Technology",Clear,Interesting,Sometimes,Always,A Lot,Often,Very Quickly,Always,Very Comfortable,Always,your laid back and you always try to see our point of views and if we don't understand you always try to explain it in a different way so we do understand  ,"maybe have more fun activities that are to do with learning espily with theory, like when we did quizlet, that was fun and engaging and it helped me and others learn a lot of theory...`},
+            { name: "Student Feedback 2025 T1 (Responses) - Form responses 1.csv", content: `Timestamp,What do I teach you?,How clearly do I explain the lessons?,How interesting are the lessons?,Do I use different ways to explain things? e.g. videos/activities/examples,Do I encourage you to ask questions or participate in class?,"How much do you enjoy participating in class activities? e.g. pair work, group work, class discussions",Do I make learning engaging and enjoyable?,How quickly do I give feedback on work or assignments?,Do I help you when you don’t understand something? ,How comfortable do you feel asking for help in class?,Do I create an environment where you feel safe and heard?,What do you like most about how I teach?,What do you think could be improved about how I teach?,Any other comments or suggestions for me?\r\n04/03/2025 15:43:06,Music,Clear,Interesting,Always,Always,A Lot,Often,Very Quickly,Always,Very Comfortable,Always,How comfortable it is. It's not a scary environment. The music room is just really chill and Phil is also great to be around and have as a teacher.,Nothing,Favourite teacher for sure \r\n04/03/2025 22:05:45,Ako,Very Clear,Neutral,Often,Sometimes,A Lot,Often,Quickly,Always,Comfortable,Often,Friendly and relatable,Not sure,No\r\n05/03/2025 09:18:13,Music,Clear,Interesting,Often,Always,Often,A Lot,Very Quickly,Always,Very Comfortable,Always,"Always help, and engaging",nothing,no\r\n14/03/2025 11:49:33,Music,Very Clear,Very Interesting,Always,Often,A Lot,Often,Quickly,Sometimes,Not Comfortable,Always,everything,nothing , let me game more in class ands not do any lreaning \r\n26/03/2025 12:50:51,Music,Clear,Interesting,Sometimes,Often,Often,Often,Quickly,Always,Comfortable,Always,you think of things in a teens  pov so it helps us understand better ,"i dont think anything needs to be inproved, you could maybe be strickter on kids who arnt doing as theyere asked but then they might not like you lol",no :) i think your great`},
+        ];
 
-<script type="module">
-    // --- Configuration and Data ---
-    const apiKey = "";
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+        // --- Utility Functions ---
 
-    // IMPORTANT: The raw CSV content from the uploaded file is embedded here.
-    const initialCsvData = `Timestamp,What do I teach you?,How clearly do I explain the lessons?,How interesting are the lessons?,Do I use different ways to explain things? e.g. videos/activities/examples,Do I encourage you to ask questions or participate in class?,"How much do you enjoy participating in class activities? e.g. pair work, group work, class discussions",Do I make learning engaging and enjoyable?,How quickly do I give feedback on work or assignments?,Do I help you when you don’t understand something? ,How comfortable do you feel asking for help in class?,Do I create an environment where you feel safe and heard?,What do you like most about how I teach?,What do you think could be improved about how I teach?,Any other comments or suggestions for me?
-04/03/2025 15:43:06,Music,Clear,Interesting,Always,Always,A Lot,Often,Very Quickly,Always,Very Comfortable,Always,"How comfortable it is. It's not a scary environment. The music room is just really chill and Phil is also great to be around and have as a teacher.","Nothing","Favourite teacher for sure "
-04/03/2025 22:05:45,Ako,Very Clear,Neutral,Often,Sometimes,A Lot,Often,Quickly,Always,Comfortable,Often,Friendly and relatable,Not sure,No
-05/03/2025 09:18:13,Music,Clear,Interesting,Often,Always,Often,A Lot,Very Quickly,Always,Very Comfortable,Always,"Always help, and engaging","nothing","no"
-05/03/2025 09:29:21,Music,Clear,Interesting,Sometimes,Often,Often,Often,Quickly,Always,Comfortable,Always,"you think of things in a teens  pov so it helps us understand better ","i dont think anything needs to be inproved, you could maybe be strickter on kids who arnt doing as theyere asked but then they might not like you lol","no :) i think your great "
-06/03/2025 09:29:55,Ako,Clear,Very Interesting,Often,Always,A Lot,A Lot,On Time,Always,Very Comfortable,Always,"You are very straightforward and don't mess about. You just get what needs to be done, done.","Not much, you are a great Ako teacher :)","Nope"
-11/03/2025 14:23:54,Music,Okay,Interesting,Often,Sometimes,A Little,A Lot,On Time,Sometimes,Comfortable,Often,practical,use text books or something on how to read music,nope
-12/03/2025 12:57:30,Music,Clear,Very Interesting,Often,Often,Often,A Lot,On Time,Sometimes,Very Comfortable,Always,I enjoy the practicals and sometimes the theory. ,-, -
-14/03/2025 11:49:33,Music,Very Clear,Very Interesting,Always,Often,A Lot,Often,Quickly,Sometimes,Not Comfortable,Always,everything,nothing , let me game more in class ands not do any lreaning 
-26/03/2025 12:50:51,Music,Clear,Neutral,Always,Always,A Lot,Often,On Time,Always,Very Comfortable,Always,I enjoy that he is not a strict teacher and doesn't get frustrated or angry if we get the wrong answer or don't know something.,The theory work is a bit hard and confusing,No
-27/03/2025 08:31:07,Music,Very Clear,Very Interesting,Always,Always,A Lot,Always,Very Quickly,Always,Very Comfortable,Always,I like the way you teach with hands on and clear instructions.,Nothing,No
-27/03/2025 12:44:48,Ako,Clear,Neutral,Often,Always,Often,Often,On Time,Always,Comfortable,Always,you can relate to students,nothing,I like this class
-27/03/2025 12:44:48,Ako,Very Clear,Very Interesting,Always,Always,A Lot,Always,Very Comfortable,Always,He is very supportive of his students, Nothing, N/A
-28/03/2025 10:14:04,Music,Very Clear,Very Interesting,Always,Always,A Lot,Always,Very Quickly,Always,Very Comfortable,Always,He helps us out a lot with our mahi and teaches us how to play instruments.,No,He is one of the best teachers I've ever had.
-01/04/2025 13:00:00,Music,Clear,Interesting,Often,Often,A Little,Often,Quickly,Always,Comfortable,Always,"I like that he gives us time to talk and catch up on work we have missed, and that he is very clear about the content being taught.",-, -
-01/04/2025 13:00:00,Music,Very Clear,Very Interesting,Always,Always,A Lot,Always,Very Quickly,Always,Very Comfortable,Always,"I like how you let us know what we are doing in class so that we can be prepared for the lesson.","Nothing to improve, best teacher ever!", No
-01/04/2025 13:00:00,Ako,Clear,Interesting,Always,Always,A Lot,Always,Very Quickly,Always,Very Comfortable,Always,He is very helpful, N/A, N/A
-01/04/2025 13:00:00,Ako,Very Clear,Very Interesting,Always,Always,A Lot,Always,Very Quickly,Always,Very Comfortable,Always,Teaching is really interesting, N/A, N/A
-01/04/2025 13:00:00,Music,Very Clear,Very Interesting,Always,Always,A Lot,Always,Very Quickly,Always,Very Comfortable,Always,"The way he talks to us about the topic, and helps us understand the importance of the work we are doing.","Maybe talk a little slower, but that's ok", No
-01/04/2025 13:00:00,Music,Very Clear,Very Interesting,Always,Always,A Lot,Always,Very Quickly,Always,Very Comfortable,Always,Helpful and supportive, No, No
-01/04/2025 13:00:00,Music,Very Clear,Very Interesting,Always,Always,A Lot,Always,Very Quickly,Always,Very Comfortable,Always,"Your not strict, you are very nice.", N/A, N/A
-01/04/2025 13:00:00,Music,Very Clear,Very Interesting,Always,Always,A Lot,Always,Very Quickly,Always,Very Comfortable,Always,Good explanations, N/A, N/A
-01/04/2025 13:00:00,Music,Clear,Interesting,Often,Often,Often,Often,Quickly,Always,Comfortable,Always,"I like how you explain things so we can understand them, and how you check in with us to make sure we are not stuck.","Maybe try to make theory more engaging, but it's okay", N/A
-01/04/2025 13:00:00,Music,Clear,Interesting,Often,Always,Often,Often,On Time,Always,Comfortable,Always,"I like how you are very clear with what we are doing, and how you help us when we are stuck.","Maybe try to be a bit more strict with the class, because some people mess around and don't get work done.", N/A
-01/04/2025 13:00:00,Music,Very Clear,Very Interesting,Always,Always,A Lot,Always,Very Quickly,Always,Very Comfortable,Always,"I like how you teach us new things, and how you are very supportive.", N/A, N/A
-01/04/2025 13:00:00,Music,Very Clear,Very Interesting,Always,Always,A Lot,Always,Very Quickly,Always,Very Comfortable,Always,I like how you help us with our work and explain things clearly., N/A, N/A
-01/04/2025 13:00:00,Music,Very Clear,Very Interesting,Always,Always,A Lot,Always,Very Quickly,Always,Very Comfortable,Always,I like how you are very supportive and helpful., N/A, N/A`;
+        /** Finds the most frequent value in an array. */
+        function getMode(arr) {
+            const counts = arr.reduce((acc, value) => {
+                acc[value] = (acc[value] || 0) + 1;
+                return acc;
+            }, {});
+            let maxCount = 0;
+            let mode = '';
+            for (const key in counts) {
+                if (counts[key] > maxCount) {
+                    maxCount = counts[key];
+                    mode = key;
+                }
+            }
+            return mode || 'N/A';
+        }
 
-    // Map for consolidating various positive responses into a single 'max' category for charts
-    const MAX_MAP = {
-        'Very Clear': 1, 'Very Interesting': 1, 'Always': 1, 'Very Quickly': 1, 'Very Comfortable': 1, 'A Lot': 1,
-        'Clear': 0.75, 'Interesting': 0.75, 'Often': 0.75, 'Quickly': 0.75, 'Comfortable': 0.75,
-        'Okay': 0.5, 'Neutral': 0.5, 'Sometimes': 0.5, 'On Time': 0.5, 'A Little': 0.5,
-        'Not Comfortable': 0.25,
-    };
+        /** Simple markdown to HTML conversion for LLM output. */
+        function markdownToHtml(markdown) {
+            // Convert headers
+            let html = markdown.replace(/^###\s*(.*)$/gm, '<h3>$1</h3>');
+            html = html.replace(/^##\s*(.*)$/gm, '<h2>$1</h2>');
+            html = html.replace(/^#\s*(.*)$/gm, '<h1>$1</h1>');
+            // Convert bold/italic
+            html = html.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            // Convert unordered lists
+            html = html.replace(/^\s*-\s+(.*)$/gm, '<li>$1</li>');
+            html = html.replace(/((<li>.*<\/li>\n*)+)/g, '<ul>$1</ul>').replace(/<\/ul>\n<ul>/g, ''); // Wrap in <ul>
+            // Convert paragraphs (lines not starting with <h, <ul, <li)
+            html = html.split('\n').map(line => {
+                if (line.trim() && !line.startsWith('<h') && !line.startsWith('<ul') && !line.startsWith('<li')) {
+                    return `<p>${line}</p>`;
+                }
+                return line;
+            }).join('\n');
+            return html;
+        }
 
-    // --- DOM Elements ---
-    const analyzeButton = document.getElementById('analyze-button');
-    const csvInput = document.getElementById('csv-input');
-    const quantitativeOutput = document.getElementById('quantitative-output');
-    const analysisOutput = document.getElementById('analysis-output');
-    const responseCountElement = document.getElementById('response-count');
-    const subjectBreakdownElement = document.getElementById('subject-breakdown');
+        /** Generates a base LLM analysis structure for a subject. */
+        function analyzeSubjectData(subjectName, data) {
+            const subjectData = data.filter(row => {
+                const taught = row['What do I teach you?'] || '';
+                return taught.split(',').map(s => s.trim()).includes(subjectName);
+            });
 
-    // --- Utility Functions ---
+            const totalResponses = subjectData.length;
+            if (totalResponses === 0) return null;
 
-    /**
-     * Robust CSV parsing function (handles quoted fields)
-     * @param {string} csvText
-     * @returns {Array<Object>} Array of objects where keys are column headers
-     */
-    function parseCSV(csvText) {
-        if (!csvText || typeof csvText !== 'string') return [];
-        const lines = csvText.split('\n').filter(line => line.trim() !== '');
+            const keyMetrics = {
+                'Clarity': 'How clearly do I explain the lessons?',
+                'Engagement': 'How interesting are the lessons?',
+                'Differentiation': 'Do I use different ways to explain things? e.g. videos/activities/examples',
+                'Participation': 'Do I encourage you to ask questions or participate in class?',
+                'Comfort': 'How comfortable do you feel asking for help in class?',
+                'FeedbackSpeed': 'How quickly do I give feedback on work or assignments?',
+            };
 
-        if (lines.length < 1) return [];
+            const metricResults = {};
 
-        // Simple split for headers, assuming header row does not contain newlines or complex escaping
-        const headers = lines[0].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(h => h.trim().replace(/"/g, ''));
-        const results = [];
-
-        for (let i = 1; i < lines.length; i++) {
-            const line = lines[i];
-            // Split line by comma, but not if the comma is inside double quotes
-            const values = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-            const row = {};
-
-            if (values.length !== headers.length) {
-                // console.warn(`Skipping line ${i + 1} due to inconsistent column count: ${values.length} vs ${headers.length}`);
-                continue;
+            for (const [metricKey, columnHeader] of Object.entries(keyMetrics)) {
+                const responses = subjectData.map(row => row[columnHeader]).filter(v => v);
+                metricResults[metricKey] = {
+                    mode: getMode(responses),
+                    count: responses.length,
+                    responses: responses
+                };
             }
 
-            values.forEach((value, j) => {
-                // Remove surrounding quotes and trim
-                row[headers[j]] = value.trim().replace(/^"|"$/g, '').trim();
-            });
-            results.push(row);
+            const likes = subjectData.map(row => row['What do you like most about how I teach?']).filter(v => v);
+            const improvements = subjectData.map(row => row['What do you think could be improved about how I teach?']).filter(v => v && v.toLowerCase() !== 'nothing' && v.toLowerCase() !== 'nope' && v.toLowerCase() !== '-');
+
+            return {
+                subjectName,
+                totalResponses,
+                metricResults,
+                likes,
+                improvements
+            };
         }
-        return results;
-    }
+        
+        // --- DOM Update Functions ---
 
-    // --- Quantitative Analysis ---
+        function updateMetricCards(analysis) {
+            const container = document.getElementById('metric-cards');
+            container.innerHTML = '';
+            
+            const metricColors = {
+                'Clarity': 'bg-indigo-100 border-indigo-500 text-indigo-700',
+                'Engagement': 'bg-pink-100 border-pink-500 text-pink-700',
+                'Differentiation': 'bg-yellow-100 border-yellow-500 text-yellow-700',
+                'Participation': 'bg-green-100 border-green-500 text-green-700',
+                'Comfort': 'bg-purple-100 border-purple-500 text-purple-700',
+                'FeedbackSpeed': 'bg-teal-100 border-teal-500 text-teal-700',
+            };
 
-    /**
-     * Processes quantitative (Likert/Frequency) data for charting.
-     * @param {Array<Object>} data
-     */
-    function processQuantitative(data) {
-        if (data.length === 0) {
-            quantitativeOutput.innerHTML = '<p class="text-center text-gray-400">No data found to analyze.</p>';
-            return {};
-        }
-
-        const quantitativeQuestions = headers.slice(2, 12); // Columns 3 to 12 are quantitative
-        const allResults = {};
-
-        // 1. Calculate Question Metrics (Counts for each response)
-        quantitativeQuestions.forEach(question => {
-            const counts = {};
-            data.forEach(row => {
-                const response = row[question];
-                if (response) {
-                    counts[response] = (counts[response] || 0) + 1;
-                }
-            });
-            allResults[question] = counts;
-        });
-
-        // 2. Calculate Subject Breakdown
-        const subjectCounts = {};
-        data.forEach(row => {
-            const subject = row['What do I teach you?'];
-            subjectCounts[subject] = (subjectCounts[subject] || 0) + 1;
-        });
-
-        // 3. Render
-        renderQuantitative(data.length, allResults, subjectCounts);
-
-        return allResults;
-    }
-
-    /**
-     * Renders the quantitative data as bar charts.
-     */
-    function renderQuantitative(totalResponses, allResults, subjectCounts) {
-        responseCountElement.textContent = totalResponses;
-        quantitativeOutput.innerHTML = '';
-        subjectBreakdownElement.innerHTML = '';
-
-        // Render Subject Breakdown
-        Object.entries(subjectCounts).forEach(([subject, count]) => {
-            const percentage = ((count / totalResponses) * 100).toFixed(0);
-            const breakdownHtml = `
-                <div class="flex items-center space-x-2 text-sm">
-                    <span class="font-bold text-[#F0E68C]">${subject}</span>
-                    <span class="text-gray-400">(${count})</span>
-                    <span class="text-white">| ${percentage}%</span>
-                </div>
-            `;
-            subjectBreakdownElement.insertAdjacentHTML('beforeend', breakdownHtml);
-        });
-
-        // Render Bar Charts
-        Object.entries(allResults).forEach(([question, counts]) => {
-            const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
-            let barHtml = '';
-
-            // Sort responses by their 'MAX_MAP' value for a logical chart order
-            const sortedResponses = Object.keys(counts).sort((a, b) => (MAX_MAP[b] || 0) - (MAX_MAP[a] || 0));
-
-            sortedResponses.forEach(response => {
-                const count = counts[response];
-                const percentage = total > 0 ? ((count / total) * 100) : 0;
-                const barColor = (MAX_MAP[response] >= 0.75) ? 'bg-green-500' :
-                                 (MAX_MAP[response] >= 0.5) ? 'bg-yellow-500' :
-                                 'bg-red-500';
-
-                barHtml += `
-                    <div class="mb-2">
-                        <div class="flex justify-between text-xs mb-1">
-                            <span class="w-1/3 text-gray-400 pr-2">${response}</span>
-                            <span class="w-1/6 text-right font-bold">${count}</span>
-                            <span class="w-1/6 text-right">${percentage.toFixed(0)}%</span>
-                        </div>
-                        <div class="bar-container">
-                            <div class="bar ${barColor}" style="width: ${percentage}%;"></div>
-                        </div>
+            Object.entries(analysis.metricResults).forEach(([key, result]) => {
+                const cardClass = metricColors[key] || 'bg-gray-100 border-gray-500 text-gray-700';
+                const cardHtml = `
+                    <div class="p-4 rounded-xl shadow-md border-b-4 ${cardClass}">
+                        <p class="text-sm font-semibold uppercase">${key}</p>
+                        <p class="text-3xl font-bold mt-1">${result.mode}</p>
+                        <p class="text-xs opacity-70 mt-1">${result.count} responses</p>
                     </div>
                 `;
+                container.insertAdjacentHTML('beforeend', cardHtml);
+            });
+        }
+
+        function updateFeedbackLists(analysis) {
+            const likesList = document.getElementById('likes-list');
+            const improvementsList = document.getElementById('improvements-list');
+            
+            const renderList = (element, items, defaultMsg) => {
+                element.innerHTML = '';
+                if (items.length > 0) {
+                    items.slice(0, 5).forEach(item => {
+                        element.insertAdjacentHTML('beforeend', `<li>${item}</li>`);
+                    });
+                    if (items.length > 5) {
+                        element.insertAdjacentHTML('beforeend', `<li class="italic text-sm opacity-70">... and ${items.length - 5} more comments.</li>`);
+                    }
+                } else {
+                    element.innerHTML = `<li class="italic text-gray-400">${defaultMsg}</li>`;
+                }
+            };
+
+            renderList(likesList, analysis.likes, 'No specific positive feedback provided.');
+            renderList(improvementsList, analysis.improvements, 'No specific areas for improvement provided.');
+
+            document.getElementById('generate-plan-button').disabled = false;
+        }
+
+        // --- Data Loading and Initialization ---
+
+        function parseAndCombineData() {
+            let combinedData = [];
+            let totalResponses = 0;
+            const promises = csvFiles.map(file => {
+                return new Promise((resolve, reject) => {
+                    Papa.parse(file.content, {
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: (results) => {
+                            if (results.errors.length) {
+                                console.error(`Error parsing ${file.name}:`, results.errors);
+                                return resolve([]);
+                            }
+                            totalResponses += results.data.length;
+                            resolve(results.data);
+                        },
+                        error: (error) => {
+                            console.error(`Failed to process ${file.name}:`, error);
+                            reject(error);
+                        }
+                    });
+                });
             });
 
-            const questionHtml = `
-                <div class="p-4 border border-gray-700 rounded-lg bg-black bg-opacity-10">
-                    <h3 class="text-sm font-semibold mb-3 text-gray-200">${question}</h3>
-                    ${barHtml}
-                </div>
+            Promise.all(promises).then(allResults => {
+                allResults.forEach(data => {
+                    combinedData = combinedData.concat(data.filter(row => 
+                        // Basic check to ensure the row has the key column for filtering
+                        (row['What do I teach you?'] || '').trim() !== '' 
+                    ));
+                });
+                
+                fullData = combinedData;
+                extractSubjects();
+                initializeUI(totalResponses);
+
+            }).catch(e => {
+                document.getElementById('loader-text').textContent = 'Error loading data.';
+                console.error("Data loading failed:", e);
+            });
+        }
+
+        function extractSubjects() {
+            fullData.forEach(row => {
+                const taught = row['What do I teach you?'] || '';
+                taught.split(',').map(s => s.trim()).filter(s => s).forEach(s => subjects.add(s));
+            });
+        }
+
+        function initializeUI(totalResponses) {
+            document.getElementById('loading-message').classList.add('hidden');
+            document.getElementById('controls-area').classList.remove('hidden');
+            document.getElementById('data-summary').textContent = `Total combined responses loaded: ${totalResponses}.`;
+
+            const select = document.getElementById('subject-select');
+            select.innerHTML = '<option value="" disabled selected>-- Select Subject --</option>';
+            
+            [...subjects].sort().forEach(subject => {
+                const option = document.createElement('option');
+                option.value = subject;
+                option.textContent = subject;
+                select.appendChild(option);
+            });
+
+            select.addEventListener('change', handleSubjectChange);
+            document.getElementById('analyze-button').addEventListener('click', runAnalysis);
+            document.getElementById('generate-plan-button').addEventListener('click', generateUnitPlan);
+        }
+
+        // --- Event Handlers ---
+
+        function handleSubjectChange(event) {
+            const subject = event.target.value;
+            if (subject) {
+                document.getElementById('analyze-button').disabled = false;
+                // Clear old analysis when subject changes
+                document.getElementById('main-content').classList.add('hidden');
+                document.getElementById('generated-content').innerHTML = '<p class="text-center italic text-gray-400">Click \'Generate Plan\' to create your data-driven curriculum.</p>';
+            }
+        }
+
+        function runAnalysis() {
+            const selectedSubject = document.getElementById('subject-select').value;
+            if (!selectedSubject) return;
+
+            const analysis = analyzeSubjectData(selectedSubject, fullData);
+
+            if (analysis && analysis.totalResponses > 0) {
+                currentAnalysis = analysis;
+                updateMetricCards(analysis);
+                updateFeedbackLists(analysis);
+                document.getElementById('main-content').classList.remove('hidden');
+            } else {
+                alert('No data found for this subject.');
+                document.getElementById('main-content').classList.add('hidden');
+            }
+        }
+
+        // --- LLM API Logic ---
+
+        async function generateUnitPlan() {
+            if (!currentAnalysis) return;
+
+            const button = document.getElementById('generate-plan-button');
+            const loader = document.getElementById('plan-loader');
+            const outputDiv = document.getElementById('generated-content');
+
+            button.disabled = true;
+            loader.classList.remove('hidden');
+            outputDiv.innerHTML = '';
+
+            const analysis = currentAnalysis;
+            
+            const systemPrompt = "You are an expert secondary school curriculum designer and instructional coach. Your task is to generate a comprehensive, actionable Unit Plan for Term 4 based on the student feedback provided. The plan must specifically address the 'Areas for Improvement' identified by the students by integrating new teaching strategies and assessment methods. Focus on practical, engaging solutions. Structure your response using H2 (##) and H3 (###) headers and bullet points.";
+
+            const userQuery = `
+                Generate a Term 4 Unit Plan for the subject: ${analysis.subjectName}.
+                The Unit Plan should be designed for a typical 8-week term and must be actionable.
+
+                The plan should include the following sections in order:
+                1. Unit Goal (1-2 sentences: overall learning outcome)
+                2. Data Snapshot (Summary of key student feedback findings)
+                3. Focus Areas for Term 4 (Must address student feedback and suggest specific, new strategies)
+                4. Recommended Activities (3 specific, high-engagement, differentiated activities)
+                5. Assessment Strategy (A mix of formative and summative, related to the focus areas)
+
+                ---
+                Student Feedback Summary (Must be incorporated and addressed in the plan):
+                - Total Responses: ${analysis.totalResponses}
+                - Most Common Clarity Feedback: ${analysis.metricResults.Clarity.mode}
+                - Most Common Engagement Feedback: ${analysis.metricResults.Engagement.mode}
+                - Most Common Comfort Feedback: ${analysis.metricResults.Comfort.mode}
+                - Top 3 Likes: ${analysis.likes.slice(0, 3).join('; ')}
+                - Top 3 Improvements: ${analysis.improvements.slice(0, 3).join('; ')}
             `;
-            quantitativeOutput.insertAdjacentHTML('beforeend', questionHtml);
-        });
-    }
 
-    // --- Qualitative Analysis (LLM) ---
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+            };
 
-    /**
-     * Calls Gemini API to summarize open-ended feedback.
-     * @param {Array<Object>} data
-     */
-    async function analyzeQualitative(data) {
-        analysisOutput.innerHTML = '<p id="analysis-status" class="text-center italic text-lg text-[#F0E68C] animate-pulse">Analyzing feedback themes with Gemini... Please wait.</p>';
-        analyzeButton.disabled = true;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${LLM_MODEL}:generateContent?key=${API_KEY}`;
 
-        if (data.length === 0) {
-            analysisOutput.innerHTML = '<p class="text-center italic text-lg text-gray-400">No responses to analyze.</p>';
-            analyzeButton.disabled = false;
-            return;
+            let attempts = 0;
+            const maxAttempts = 5;
+
+            while (attempts < maxAttempts) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        if (response.status === 429 && attempts < maxAttempts - 1) {
+                            const delay = Math.pow(2, attempts) * 1000;
+                            await new Promise(res => setTimeout(res, delay));
+                            attempts++;
+                            continue;
+                        }
+                        throw new Error(`API request failed with status ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    const generatedText = result.candidates?.[0]?.content?.parts?.[0]?.text || 'Error: Could not retrieve generated text.';
+
+                    outputDiv.innerHTML = markdownToHtml(generatedText);
+                    break; 
+
+                } catch (error) {
+                    outputDiv.innerHTML = `<p class="text-red-500">An error occurred: ${error.message}. Please try again.</p>`;
+                    console.error("LLM Generation Error:", error);
+                    break;
+                } finally {
+                    loader.classList.add('hidden');
+                    button.disabled = false;
+                }
+            }
         }
 
-        const improvementComments = data.map(row => row['What do you think could be improved about how I teach?']).filter(c => c && c.trim() !== '-' && c.trim().toLowerCase() !== 'nothing' && c.trim().toLowerCase() !== 'n/a');
-        const positiveComments = data.map(row => row['What do you like most about how I teach?']).filter(c => c && c.trim() !== '-' && c.trim().toLowerCase() !== 'everything' && c.trim().toLowerCase() !== 'n/a');
+        // --- Application Bootstrap ---
+        window.onload = parseAndCombineData;
 
-        const systemPrompt = `You are a helpful, professional educational coach and data analyst. Your task is to analyze the raw student feedback provided in CSV format to provide constructive, themed insights for the teacher.
-The data is structured as two columns:
-1. "Positive Comments": What students like most about the teaching.
-2. "Improvement Comments": What students think could be improved.
-
-Your goal is to:
-1. Create 3-5 major themes for the "Positive Comments."
-2. Create 3-5 major themes for the "Improvement Comments."
-3. For each theme, provide 1-2 example quotes from the raw data.
-4. Be encouraging and action-oriented in your summary.
-
-The output MUST be in clear, clean Markdown format.`;
-
-        const userQuery = `Analyze the following raw student feedback data:
-
---- Positive Comments ---
-${positiveComments.join('\n- ')}
-
---- Improvement Comments ---
-${improvementComments.join('\n- ')}
-`;
-
-        try {
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: userQuery }] }],
-                    systemInstruction: { parts: [{ text: systemPrompt }] },
-                })
-            });
-
-            if (!response.ok) throw new Error(`API response error: ${response.statusText}`);
-
-            const result = await response.json();
-            const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "Analysis failed to produce text.";
-            analysisOutput.innerHTML = text;
-
-        } catch (error) {
-            console.error("Gemini API Error:", error);
-            analysisOutput.innerHTML = `<p class="text-center text-red-400">Analysis failed: ${error.message}</p>`;
-        } finally {
-            analyzeButton.disabled = false;
-        }
-    }
-
-    // --- Main Logic ---
-
-    let headers = [];
-
-    /**
-     * Main function to load data, process, and render.
-     * @param {string} csv
-     */
-    async function startAnalysis(csv) {
-        const data = parseCSV(csv);
-        if (data.length > 0) {
-            headers = Object.keys(data[0]);
-            // Run Quantitative (charts)
-            processQuantitative(data);
-            // Run Qualitative (LLM themes)
-            await analyzeQualitative(data);
-        } else {
-            quantitativeOutput.innerHTML = '<p class="text-center text-gray-400">No valid data found in the input.</p>';
-            analysisOutput.innerHTML = '<p class="text-center italic text-lg text-gray-400">No responses to analyze.</p>';
-        }
-    }
-
-    // Event listener for the button
-    analyzeButton.addEventListener('click', () => {
-        const updatedCsv = csvInput.value.trim();
-        if (updatedCsv) {
-            startAnalysis(updatedCsv);
-        } else {
-            // Error handling or just re-run initial analysis if input is cleared
-            // console.log("Input is empty, running initial data analysis.");
-            startAnalysis(initialCsvData);
-        }
-    });
-
-    // Initialize the app with the pre-loaded data
-    window.onload = () => {
-        csvInput.value = initialCsvData; // Pre-fill the box for user visibility
-        startAnalysis(initialCsvData);
-    };
-
-</script>
+    </script>
 </body>
 </html>
