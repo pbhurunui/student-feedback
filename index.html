@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Teaching Effectiveness Dashboard</title>
+    <title>Professional Growth</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -88,7 +88,7 @@
     <div id="dashboard" class="blackboard-bg max-w-6xl mx-auto p-6 md:p-10">
 
         <header class="text-center mb-10">
-            <h1 class="text-4xl md:text-5xl font-extrabold chalk-text mb-2">Live Teaching Effectiveness Dashboard</h1>
+            <h1 class="text-4xl md:text-5xl font-extrabold chalk-text mb-2">Professional Growth</h1>
             <p class="text-xl chalk-text font-light">Upload Student Feedback & Paste Observation Reports for Instant Analysis</p>
         </header>
         
@@ -180,6 +180,14 @@
                 </div>
             </section>
 
+            <!-- 4. Self-Assessment against College Standards -->
+            <section>
+                <h2 class="text-3xl font-bold chalk-text chalk-heading border-yellow-300">5. Self-Assessment Against Hurunui College Quality Practices Matrix</h2>
+                <div id="self-assessment-report">
+                    <p class="chalk-text p-4 text-center text-gray-400">Run analysis to generate self-assessment report based on the provided College standards.</p>
+                </div>
+            </section>
+
         </div>
     </div>
 
@@ -188,6 +196,24 @@
         // IN-BROWSER JAVASCRIPT ANALYSIS ENGINE (with LLM Integration & DND)
         // =================================================================
         
+        // --- 0. College Standards for LLM Assessment ---
+        const HC_QUALITY_MATRIX_CONTENT = `
+            Hurunui College Quality Practices Matrix - Teacher Requirements:
+
+            Standard: Te Tiriti o Waitangi Partnership
+            Requirements:
+            - Develop their own competence and practice in the use of te reo maori.
+            - Promote educational success for Māori as Māori.
+
+            Standard: Professional Learning and Development
+            Requirements:
+            - Use an increasing repertoire of teaching strategies, approaches, learning activities, technologies and assessment for learning strategies and modify these in response to the needs of individuals and groups of learners.
+            - Provide opportunities and support for learners to engage with, practise and apply learning to different contexts and make connections with prior learning.
+            - Teach in ways which enable learners to learn from one another, to collaborate, to self-regulate, and to develop agency over their learning.
+            - Ensure learners receive ongoing feedback and assessment information and support them to use this information to guide further learning.
+            - Be aware of all akonga’s progress and learning needs and share achievement data appropriately.
+        `;
+
         // --- 1. Scoring Mappings (Student Feedback) ---
         const CLARITY_INTEREST_MAP = {
             'Very Clear': 5, 'Very Interesting': 5,
@@ -398,7 +424,7 @@
                 const count = group.data.length;
                 
                 const avgScores = {};
-                scoreCols.concat(['Overall_Avg_Score']).forEach(col => {
+                scoreCols.forEach(col => {
                     avgScores[col] = group.totalScores[col] / count;
                 });
                 
@@ -426,7 +452,7 @@
             const positiveWords = getTopWords(combinedData.map(r => r.Qual_Positive).filter(Boolean), 5);
             const improvementWords = getTopWords(combinedData.map(r => r.Qual_Improvement).filter(Boolean), 5);
 
-            return { overallMetrics, subjectAverages, qualitative: { positive: positiveWords, improvement: improvementWords } };
+            return { overallMetrics, subjectAverages, qualitative: { positive: positiveWords, improvement: improvementWords }, combinedData: combinedData };
         };
 
 
@@ -597,14 +623,115 @@
                 };
             });
             
-            return { overallMetrics, subjectAverages };
+            return { overallMetrics, subjectAverages, rawData: combinedData };
         };
 
 
-        // --- 6. Rendering Functions ---
+        // --- 6. LLM Self-Assessment against Matrix ---
         
-        let analysisResults = { studentFeedbackData: null, observationData: null };
+        const generateSelfAssessment = async (feedbackResults, obsResults, matrixContent) => {
+            
+            const studentMetrics = feedbackResults.overallMetrics;
+            const latestStudentMetrics = studentMetrics.length > 0 ? studentMetrics[studentMetrics.length - 1] : null;
+            const studentQualitative = feedbackResults.qualitative;
+            
+            const obsRawData = obsResults.rawData;
 
+            if (!latestStudentMetrics && obsRawData.length === 0) {
+                return [];
+            }
+            
+            // Format the key data points into a single text block for the LLM
+            const dataSummary = `
+                --- ANALYZED PERFORMANCE DATA ---
+
+                [A] Latest Student Feedback Metrics (T3 2025 or latest term):
+                ${latestStudentMetrics ? studentMetrics.map(m => `- ${m.metric}: ${m.t3.toFixed(2)} / 5.0`).join('\n') : '- No quantitative student feedback data available.'}
+                
+                [B] Top Positive Themes from Student Feedback (Qualitative):
+                - ${studentQualitative.positive.join(', ') || 'N/A'}
+                
+                [C] Key Improvement Themes from Student Feedback (Qualitative):
+                - ${studentQualitative.improvement.join(', ') || 'N/A'}
+
+                [D] Observation Report Metrics:
+                ${obsRawData.map(o => 
+                    `- Observation Term: ${o.Source_Term}, Subject: ${o.Subject}, Pace: ${o.Pace}/5, Engagement: ${o.Engagement}/5, Management: ${o.Management}/5`
+                ).join('\n') || '- No observation data available.'}
+
+                --- COLLEGE QUALITY MATRIX REQUIREMENTS ---
+                ${matrixContent}
+            `;
+
+            const systemPrompt = `You are a professional teaching analyst specializing in aligning performance data with institutional standards. Your task is to perform a self-assessment based on the provided student feedback, observation data, and the Hurunui College Quality Practices Matrix.
+
+            For EACH requirement listed in the matrix, you must:
+            1. Determine how well the provided data (A, B, C, D) supports the requirement being met.
+            2. Assign a Confidence Score from 1 (poor fit) to 5 (strong evidence).
+            3. Provide the most compelling piece of **direct evidence** (e.g., a specific score or a key qualitative theme).
+            4. Suggest a single, highly **specific action step** to either maintain the high standard or address a weakness identified by the data.
+
+            You MUST only return the final JSON array according to the schema.`;
+
+            const payload = {
+                contents: [{ parts: [{ text: dataSummary }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "ARRAY",
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                "Standard_Summary": { "type": "STRING", "description": "A concise summary of the standard being assessed (e.g., 'Use diverse strategies and technology' or 'Provide ongoing feedback')." },
+                                "Confidence_Score_1_5": { "type": "INTEGER", "description": "A score from 1 (low confidence/evidence) to 5 (high confidence/evidence) that the data supports meeting this standard." },
+                                "Supporting_Evidence": { "type": "STRING", "description": "Concrete evidence from the student feedback or observation data (e.g., 'Student score of 4.5 in Clarity', or 'Observation score of 5 in Pace')." },
+                                "Suggested_Action": { "type": "STRING", "description": "A specific, actionable step to improve performance related to this standard." }
+                            },
+                            propertyOrdering: ["Standard_Summary", "Confidence_Score_1_5", "Supporting_Evidence", "Suggested_Action"]
+                        }
+                    }
+                }
+            };
+
+            const maxRetries = 3;
+            let lastError = null;
+            
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+                try {
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    
+                    const result = await response.json();
+                    
+                    const candidate = result.candidates?.[0];
+                    if (candidate && candidate.content?.parts?.[0]?.text) {
+                        const jsonString = candidate.content.parts[0].text;
+                        return JSON.parse(jsonString);
+                    }
+                    throw new Error("LLM returned an invalid candidate structure for self-assessment.");
+                } catch (error) {
+                    lastError = error;
+                    if (attempt < maxRetries - 1) {
+                        const delay = Math.pow(2, attempt) * 1000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    } else {
+                        throw new Error(`Failed to generate self-assessment after ${maxRetries} attempts: ${lastError.message}`);
+                    }
+                }
+            }
+        };
+
+        // --- 7. Rendering Functions ---
+        
+        let analysisResults = { studentFeedbackData: null, observationData: null, selfAssessment: null };
+
+        // ... (renderOverallScores, renderSubjectTrends, renderQualitativeFeedback, renderObservationMetrics are unchanged) ...
         const renderOverallScores = (metrics) => {
             const container = document.getElementById('overall-scores');
             if (!metrics || metrics.length === 0) {
@@ -777,8 +904,52 @@
              container.innerHTML = html;
         };
 
+        const renderSelfAssessment = (assessmentData) => {
+            const container = document.getElementById('self-assessment-report');
+            if (!assessmentData || assessmentData.length === 0) {
+                container.innerHTML = `<p class="chalk-text p-4 text-center text-gray-400">Not enough data to cross-reference against College Quality Practices.</p>`;
+                return;
+            }
 
-        // --- 7. Main Controller & DND Logic ---
+            let html = '<div class="space-y-8">';
+            assessmentData.forEach(item => {
+                const score = item.Confidence_Score_1_5 || 0;
+                const color = score >= 4 ? 'text-green-400' : (score >= 3 ? 'text-yellow-400' : 'text-red-400');
+                const progressBar = `
+                    <div class="h-2 w-full rounded-full bg-gray-700 mt-1">
+                        <div class="h-2 rounded-full ${score >= 4 ? 'bg-green-500' : (score >= 3 ? 'bg-yellow-500' : 'bg-red-500')}" 
+                             style="width: ${(score / 5) * 100}%;">
+                        </div>
+                    </div>
+                `;
+
+                html += `
+                    <div class="score-box p-6 rounded-xl border border-blue-400/50">
+                        <h3 class="text-xl font-bold chalk-text text-blue-300 mb-3">${item.Standard_Summary}</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="md:col-span-1">
+                                <p class="text-sm font-semibold chalk-text text-gray-400">Confidence Score (Evidence-Based)</p>
+                                <p class="text-4xl font-extrabold ${color} mt-1">${score.toFixed(1)} <span class="text-lg text-gray-400">/ 5</span></p>
+                                ${progressBar}
+                            </div>
+                            <div class="md:col-span-2">
+                                <p class="text-sm font-semibold chalk-text text-gray-400">Supporting Evidence</p>
+                                <p class="chalk-text text-lg italic mt-1 bg-gray-700/30 p-2 rounded-md">${item.Supporting_Evidence || 'No direct evidence found.'}</p>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-gray-600">
+                             <p class="text-sm font-semibold chalk-text text-gray-400">Suggested Action Step</p>
+                            <p class="chalk-text text-lg font-medium mt-1">${item.Suggested_Action || 'No specific action suggested.'}</p>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        };
+
+
+        // --- 8. Main Controller & DND Logic ---
         
         const analyzeButton = document.getElementById('analyze-button');
         const feedbackFilesInput = document.getElementById('feedback-files');
@@ -842,7 +1013,7 @@
             analyzeText.textContent = isProcessing ? 'Analyzing Data...' : 'Analyze Data & Update Dashboard';
             statusMessage.textContent = message;
             statusMessage.classList.toggle('hidden', message === '');
-            statusMessage.classList.remove('text-green-300', 'text-red-300');
+            statusMessage.classList.remove('text-green-300', 'text-red-300', 'text-yellow-300');
             if (isError) {
                 statusMessage.classList.add('text-red-300');
             } else if (message.includes('successfully')) {
@@ -871,28 +1042,33 @@
                 
                 // 2. Process Observation Data (Using LLM if text is present)
                 let structuredObservationData = [];
+                let observationResults = { overallMetrics: [], subjectAverages: {}, rawData: [] };
                 if (observationText) {
-                    updateUIState(true, '1/2. Extracting Observation Data using LLM...');
+                    updateUIState(true, '1/3. Extracting Observation Data using LLM...');
                     structuredObservationData = await extractObservationDataWithGemini(observationText);
-                    updateUIState(true, '2/2. Analyzing Extracted Data...');
+                    observationResults = analyzeObservationData(structuredObservationData);
                 }
-                
-                const observationResults = analyzeObservationData(structuredObservationData);
+                updateUIState(true, '2/3. Analyzing Feedback and Observation...');
 
-                // 3. Update Global Results and Render
+                // 3. Generate Self-Assessment
+                updateUIState(true, '3/3. Generating Self-Assessment Report against College Standards...');
+                const selfAssessmentData = await generateSelfAssessment(studentFeedbackResults, observationResults, HC_QUALITY_MATRIX_CONTENT);
+
+                // 4. Update Global Results and Render
                 analysisResults.studentFeedbackData = studentFeedbackResults;
                 analysisResults.observationData = observationResults;
+                analysisResults.selfAssessment = selfAssessmentData;
 
                 renderOverallScores(studentFeedbackResults.overallMetrics);
                 renderSubjectTrends(studentFeedbackResults.subjectAverages, observationResults.subjectAverages);
                 renderQualitativeFeedback(studentFeedbackResults.qualitative);
                 renderObservationMetrics(observationResults.overallMetrics);
+                renderSelfAssessment(selfAssessmentData);
 
-                updateUIState(false, 'Analysis completed successfully! Dashboard updated.');
+                updateUIState(false, 'Analysis and Self-Assessment completed successfully! Dashboard updated.');
 
             } catch (error) {
                 console.error("Analysis Error:", error);
-                // Check if the error is due to an empty response from the LLM
                 let userMessage = error.message || error;
                 if (userMessage.includes("LLM returned an invalid candidate structure")) {
                     userMessage = "LLM Extraction Failed: The observation text was too ambiguous or empty. Please ensure the text contains subject, term, and clear feedback on Pace, Engagement, and Management (1-5 scores or descriptive text).";
