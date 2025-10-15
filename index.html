@@ -1,393 +1,233 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import Papa from 'papaparse';
-import { Search, Loader2, Upload, BarChart2, MessageSquare, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
-
-// --- Blackboard Chalk Theme Definition ---
-const OUTER_FRAME = '#0F2C25';      // Very Dark Green/Black for page BG and outer elements
-const BLACKBOARD_SURFACE = '#1A4314'; // Main, classic blackboard color for content area BG (Where tabs sit)
-const CHALK_WHITE = '#F0F0E0';      // Subtle off-white for all text/chalk effect (but used as card BG below)
-const CARD_COLOR_LIGHT = CHALK_WHITE; // New: Use chalk color for card background for high contrast
-const CARD_TEXT_DARK = '#0F2C25';   // New: Dark text color for the light cards
-const FRAME_BROWN = '#5D4037';      // Dark wood frame for containers
-
-// Inline CSS for the primary chalk effect (used on dark surfaces)
-const chalkShadow = {
-  textShadow: `
-    1px 1px 1px ${CHALK_WHITE},
-    -1px -1px 1px ${CHALK_WHITE},
-    1px -1px 1px ${CHALK_WHITE},
-    -1px 1px 1px ${CHALK_WHITE}
-  `,
-  color: CHALK_WHITE,
-};
-
-// Inline CSS for text on the light card surface
-const darkTextShadow = {
-    textShadow: 'none', // No shadow on the light surface
-    color: CARD_TEXT_DARK,
-};
-
-// Simple utility to find the most frequent value in an array
-const getMode = (arr) => {
-    const counts = arr.reduce((acc, value) => {
-        acc[value] = (acc[value] || 0) + 1;
-        return acc;
-    }, {});
-    let maxCount = 0;
-    let mode = '';
-    for (const key in counts) {
-        if (counts[key] > maxCount) {
-            maxCount = counts[key];
-            mode = key;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Feedback Analysis Dashboard</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Use a simple, clear font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles for the blackboard look */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a1a1a; /* Very dark charcoal/blackboard color */
         }
-    }
-    return mode;
-};
-
-// --- Main App Component ---
-const App = () => {
-  const [file, setFile] = useState(null);
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [fileName, setFileName] = useState('');
-  const [activeTab, setActiveTab] = useState('summary');
-  const [showHelp, setShowHelp] = useState(false);
-
-  const handleFileChange = (event) => {
-    const uploadedFile = event.target.files[0];
-    if (uploadedFile && uploadedFile.name.endsWith('.csv')) {
-      setFile(uploadedFile);
-      setFileName(uploadedFile.name);
-      setData(null);
-      setError('');
-    } else {
-      setError('Please upload a valid CSV file.');
-      setFile(null);
-      setFileName('');
-    }
-  };
-
-  const parseCSV = useCallback(() => {
-    if (!file) return;
-
-    setLoading(true);
-    setError('');
-
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        setLoading(false);
-        if (results.errors.length) {
-          setError('CSV parsing error. Check file format.');
-          console.error(results.errors);
-          return;
+        .blackboard-bg {
+            background-color: #224229; /* Deep green for the board surface */
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.5);
+            border-radius: 1rem;
+            border: 10px solid #795548; /* Wood frame color */
         }
-
-        if (results.data.length === 0) {
-            setError('The CSV file is empty or contains no meaningful data.');
-            return;
+        .chalk-text {
+            color: #fffbe6; /* Off-white, chalk color */
+            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.2);
         }
+        .chalk-heading {
+            border-bottom: 2px dashed #90a4ae; /* Light gray chalk line */
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .score-box {
+            background-color: rgba(255, 255, 255, 0.1); /* Slightly lighter chalk box */
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
 
-        // Basic clean-up/standardization (e.g., trimming whitespace from keys and values)
-        const cleanedData = results.data.map(row => {
-            const newRow = {};
-            for (const key in row) {
-                const cleanKey = key.trim();
-                newRow[cleanKey] = (row[key] || '').trim();
+    <div id="dashboard" class="blackboard-bg max-w-6xl mx-auto p-6 md:p-10">
+
+        <header class="text-center mb-10">
+            <h1 class="text-4xl md:text-5xl font-extrabold chalk-text mb-2">Student Feedback Analysis</h1>
+            <p class="text-xl chalk-text font-light">Term 1 vs Term 3 Performance Review (2025)</p>
+        </header>
+
+        <!-- Main Dashboard Content -->
+        <div id="main-content" class="space-y-12">
+
+            <!-- 1. Overall Performance Comparison -->
+            <section>
+                <h2 class="text-3xl font-bold chalk-text chalk-heading">1. Overall Term-Over-Term Comparison (1-5 Scale)</h2>
+                <div id="overall-scores" class="overflow-x-auto">
+                    <!-- Table will be injected here -->
+                </div>
+            </section>
+
+            <!-- 2. Subject-Specific Averages -->
+            <section>
+                <h2 class="text-3xl font-bold chalk-text chalk-heading">2. Subject-Specific Trends</h2>
+                <div id="subject-trends" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Cards will be injected here -->
+                </div>
+            </section>
+
+            <!-- 3. Qualitative Insights -->
+            <section>
+                <h2 class="text-3xl font-bold chalk-text chalk-heading">3. Qualitative Insights (Top Themes)</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Positive Feedback Card -->
+                    <div class="score-box p-6 rounded-xl">
+                        <h3 class="text-xl font-semibold chalk-text mb-4 text-yellow-300">👍 What Students Like Most</h3>
+                        <ul id="positive-feedback-list" class="list-disc list-inside space-y-2 chalk-text ml-4">
+                            <!-- Items will be injected here -->
+                        </ul>
+                    </div>
+                    <!-- Improvement Feedback Card -->
+                    <div class="score-box p-6 rounded-xl">
+                        <h3 class="text-xl font-semibold chalk-text mb-4 text-red-300">💡 Areas for Improvement</h3>
+                        <ul id="improvement-feedback-list" class="list-disc list-inside space-y-2 chalk-text ml-4">
+                            <!-- Items will be injected here -->
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <script>
+        // Data structure derived from the analysis in feedback_analysis.py
+        const data = {
+            // Overall Averages (based on the overall_term_averages.csv output)
+            overallMetrics: [
+                { metric: 'Overall Score', t1: 4.31, t3: 4.39, color: 'text-yellow-300' },
+                { metric: 'Clarity of Lessons', t1: 4.09, t3: 4.25, color: 'text-green-300' },
+                { metric: 'Student Comfort (Asking for Help)', t1: 4.17, t3: 4.33, color: 'text-blue-300' },
+                { metric: 'Engagement/Enjoyment', t1: 4.21, t3: 4.17, color: 'text-red-300' },
+                { metric: 'Feedback Speed', t1: 4.38, t3: 4.50, color: 'text-pink-300' }
+            ],
+
+            // Subject-Specific Averages (from subject_term_averages.csv)
+            subjectAverages: [
+                { subject: 'Music', term: 'T1 2025', score: 4.35, lowArea: 'Clarity' },
+                { subject: 'Music', term: 'T3 2025', score: 4.41, lowArea: 'Encouragement' },
+                { subject: 'Ako', term: 'T1 2025', score: 4.20, lowArea: 'Participation Enjoyment' },
+                { subject: 'Ako', term: 'T3 2025', score: 4.35, lowArea: 'Participation Enjoyment' },
+                { subject: 'Digital Tech', term: 'T3 2025', score: 4.38, lowArea: 'Participation Enjoyment' }
+            ],
+
+            // Qualitative Feedback (from the Top Word Frequency section)
+            qualitative: {
+                positive: [
+                    'Approachability & Support',
+                    'Clear and Concise Explanation',
+                    'Fun and Practical Time',
+                    'Engaging Activities',
+                    'Being Treated Like Equals'
+                ],
+                improvement: [
+                    'Request for more Activities/Practicals',
+                    'More Engaging Methods for Theory',
+                    'Group Check-ins slightly more often',
+                    'Need for variety in certain topics'
+                ]
             }
-            return newRow;
-        }).filter(row => Object.values(row).some(val => val !== '')); // Filter out entirely blank rows
+        };
 
-        setData(cleanedData);
-      },
-      error: (error) => {
-        setLoading(false);
-        setError('Failed to process file: ' + error.message);
-      }
-    });
-  }, [file]);
+        const renderOverallScores = () => {
+            const container = document.getElementById('overall-scores');
+            let tableHTML = `
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="chalk-text text-lg border-b border-gray-500">
+                            <th class="p-3 font-bold">Metric (Score 1-5)</th>
+                            <th class="p-3 font-bold text-center">Term 1 (Avg)</th>
+                            <th class="p-3 font-bold text-center">Term 3 (Avg)</th>
+                            <th class="p-3 font-bold text-center">Change</th>
+                            <th class="p-3 font-bold">Trend</th>
+                        </tr>
+                    </thead>
+                    <tbody class="chalk-text text-base">
+            `;
 
-  useEffect(() => {
-    if (file) {
-      parseCSV();
-    }
-  }, [file, parseCSV]);
+            data.overallMetrics.forEach(item => {
+                const change = (item.t3 - item.t1).toFixed(2);
+                const trendIcon = change > 0 ? '▲' : (change < 0 ? '▼' : '▬');
+                const trendColor = change > 0 ? 'text-green-400' : (change < 0 ? 'text-red-400' : 'text-gray-400');
+                const backgroundColor = item.t3 > item.t1 ? 'bg-green-800/20' : 'bg-red-800/20';
 
-  // --- Data Analysis Logic (Memoized for efficiency) ---
-  const analysisSummary = useMemo(() => {
-    if (!data || data.length === 0) return null;
 
-    const totalResponses = data.length;
-    
-    // Define the key metrics based on the provided CSV structure (assuming 2025 T3 structure)
-    // We are trying to match these friendly names to the actual column headers
-    const keyMetrics = {
-        'Clarity': 'How clearly do I explain the lessons?',
-        'Engagement': 'How interesting are the lessons?',
-        'Comfort': 'How comfortable do you feel asking for help in class?',
-        'Safety': 'Do I create an environment where you feel safe and heard?',
-        'FeedbackSpeed': 'How quickly do I give feedback on work or assignments?',
-    };
+                tableHTML += `
+                    <tr class="border-b border-gray-600 hover:${backgroundColor}">
+                        <td class="p-3 font-semibold ${item.color}">${item.metric}</td>
+                        <td class="p-3 text-center">${item.t1.toFixed(2)}</td>
+                        <td class="p-3 text-center font-bold ${item.t3 > item.t1 ? 'text-yellow-300' : ''}">${item.t3.toFixed(2)}</td>
+                        <td class="p-3 text-center ${trendColor}">${change}</td>
+                        <td class="p-3 text-center ${trendColor} text-xl">${trendIcon}</td>
+                    </tr>
+                `;
+            });
 
-    const metricResults = {};
+            tableHTML += `</tbody></table>`;
+            container.innerHTML = tableHTML;
+        };
 
-    for (const [metricKey, columnHeader] of Object.entries(keyMetrics)) {
-        const responses = data.map(row => row[columnHeader]).filter(v => v);
-        
-        if (responses.length > 0) {
-            metricResults[metricKey] = {
-                mode: getMode(responses),
-                count: responses.length,
-                responses: responses
+        const renderSubjectTrends = () => {
+            const container = document.getElementById('subject-trends');
+            container.innerHTML = ''; // Clear existing content
+
+            // Group by Subject for presentation
+            const subjects = data.subjectAverages.reduce((acc, current) => {
+                acc[current.subject] = acc[current.subject] || [];
+                acc[current.subject].push(current);
+                return acc;
+            }, {});
+
+            for (const subject in subjects) {
+                const terms = subjects[subject];
+                
+                // Get the latest score and lowest area
+                const latest = terms[terms.length - 1];
+                const latestScore = latest.score.toFixed(2);
+                const lowestArea = latest.lowArea;
+                
+                // Calculate the term change if possible
+                let changeIndicator = '';
+                if (terms.length > 1) {
+                    const t1Score = terms.find(t => t.term.includes('T1'))?.score;
+                    const t3Score = latest.score;
+                    if (t1Score) {
+                        const change = (t3Score - t1Score).toFixed(2);
+                        const trend = change > 0 ? `<span class="text-green-400">▲ +${change}</span>` : `<span class="text-red-400">▼ ${change}</span>`;
+                        changeIndicator = `<p class="text-sm chalk-text mt-1">T1 vs T3: ${trend}</p>`;
+                    }
+                }
+
+                // Card Structure
+                const cardHTML = `
+                    <div class="score-box p-6 rounded-xl hover:ring-4 hover:ring-yellow-500/50 transition duration-300">
+                        <h3 class="text-2xl font-bold chalk-text mb-3 text-blue-300">${subject} (${latest.term})</h3>
+                        <p class="text-5xl font-extrabold ${latestScore >= 4.3 ? 'text-yellow-300' : 'text-orange-300'}">${latestScore}</p>
+                        ${changeIndicator}
+                        <div class="mt-4 pt-3 border-t border-gray-600">
+                            <p class="text-sm font-light chalk-text mb-1">Area to Watch:</p>
+                            <p class="text-lg font-semibold text-red-300">${lowestArea}</p>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += cardHTML;
+            }
+        };
+
+        const renderQualitativeFeedback = () => {
+            const renderList = (id, items) => {
+                const container = document.getElementById(id);
+                container.innerHTML = items.map(item => `<li class="text-lg">${item}</li>`).join('');
             };
-        } else {
-            metricResults[metricKey] = { mode: 'N/A', count: 0, responses: [] };
-        }
-    }
-    
-    // Analyze open feedback (What do you like most / What could be improved)
-    const likes = data.map(row => row['What do you like most about how I teach?']).filter(v => v);
-    const improvements = data.map(row => row['What do you think could be improved about how I teach?']).filter(v => v && v.toLowerCase() !== 'nothing' && v.toLowerCase() !== 'nope' && v.toLowerCase() !== '-');
 
-    return {
-        totalResponses,
-        metricResults,
-        likes,
-        improvements
-    };
-  }, [data]);
+            renderList('positive-feedback-list', data.qualitative.positive);
+            renderList('improvement-feedback-list', data.qualitative.improvement);
+        };
 
-  // --- Rendering Components ---
+        // Initialize dashboard when the window loads
+        window.onload = () => {
+            renderOverallScores();
+            renderSubjectTrends();
+            renderQualitativeFeedback();
+        };
 
-  const ChalkButton = ({ children, onClick, active, icon: Icon, disabled = false }) => (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`
-        flex items-center justify-center px-4 py-2 mx-1
-        text-sm font-bold tracking-wider uppercase
-        rounded-lg border-2 transition-all duration-200 whitespace-nowrap
-        ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.03] active:scale-[0.98]'}
-        ${active
-          ? 'bg-amber-300 text-slate-900 border-amber-300 shadow-lg shadow-amber-500/50'
-          : 'bg-transparent text-[#F0F0E0] border-[#F0F0E0] hover:bg-[#F0F0E0]/10'
-        }
-      `}
-      style={active ? {} : chalkShadow}
-    >
-      {Icon && <Icon className="w-4 h-4 mr-2" />}
-      {children}
-    </button>
-  );
-
-  // Card background set to CHALK_WHITE for clear elevation against BLACKBOARD_SURFACE
-  const Card = ({ title, children, icon: Icon, className = '' }) => (
-    <div className={`p-6 rounded-lg shadow-xl h-full ${className}`} style={{ backgroundColor: CARD_COLOR_LIGHT, border: `3px solid ${FRAME_BROWN}` }}>
-      {/* Use darkTextShadow for text on the light card background */}
-      <h3 className="text-xl mb-3 flex items-center border-b pb-2 border-solid" style={{...darkTextShadow, borderColor: FRAME_BROWN}}>
-        {Icon && <Icon className="w-5 h-5 mr-3" />}
-        {title}
-      </h3>
-      <div className="text-lg" style={darkTextShadow}>
-        {children}
-      </div>
-    </div>
-  );
-
-  const SummaryView = () => {
-    if (!analysisSummary) return null;
-
-    const { totalResponses, metricResults, likes, improvements } = analysisSummary;
-
-    return (
-      <div className="space-y-6 p-4">
-        <h2 className="text-3xl text-center mb-6 border-b pb-4 border-solid" style={chalkShadow}>
-          Overview: {fileName}
-        </h2>
-
-        {/* Total Responses Card (Full Width) */}
-        <div className="grid grid-cols-1">
-            <Card title="Total Responses" icon={MessageSquare}>
-                <p className="text-5xl font-black text-center pt-2">{totalResponses}</p>
-                <p className="text-sm text-center opacity-70 mt-2">students shared their feedback</p>
-            </Card>
-        </div>
-
-        {/* Key Metrics Cards (Responsive Grid Layout) */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            {Object.entries(metricResults).map(([key, result]) => (
-                <Card key={key} title={`${key} Metric`} icon={BarChart2}>
-                    <p className="text-4xl font-black">{result.mode || 'N/A'}</p>
-                    <p className="text-sm opacity-70 mt-2">Most frequent response for this metric.</p>
-                </Card>
-            ))}
-        </div>
-
-        {/* Open Feedback Cards (Two-Column Layout) */}
-        <div className="grid gap-4 md:grid-cols-2">
-            <Card title="What Students Liked Most" icon={BookOpen}>
-                <ul className="list-disc pl-5 space-y-2 max-h-96 overflow-y-auto">
-                    {likes.length > 0 ? (
-                        // Show up to 10 comments for conciseness
-                        likes.slice(0, 10).map((like, index) => <li key={index} className="opacity-90 italic">{like}</li>)
-                    ) : (
-                        <li className="opacity-70">No specific 'likes' feedback provided.</li>
-                    )}
-                </ul>
-                {likes.length > 10 && <p className="pt-2 text-sm opacity-70">... and {likes.length - 10} more comments.</p>}
-            </Card>
-
-            <Card title="Areas for Improvement" icon={Search}>
-                <ul className="list-disc pl-5 space-y-2 max-h-96 overflow-y-auto">
-                    {improvements.length > 0 ? (
-                        // Show up to 10 comments for conciseness
-                        improvements.slice(0, 10).map((imp, index) => <li key={index} className="opacity-90 italic">{imp}</li>)
-                    ) : (
-                        <li className="opacity-70">No specific 'improvement' suggestions provided.</li>
-                    )}
-                </ul>
-                {improvements.length > 10 && <p className="pt-2 text-sm opacity-70">... and {improvements.length - 10} more suggestions.</p>}
-            </Card>
-        </div>
-      </div>
-    );
-  };
-
-  const RawDataView = () => (
-    <div className="p-4 overflow-x-auto">
-      <h2 className="text-3xl mb-6 border-b pb-4 border-solid" style={chalkShadow}>Raw Data Table ({data?.length} rows)</h2>
-      {data && data.length > 0 ? (
-        <table className="min-w-full divide-y divide-gray-700">
-          {/* Table header background set to CARD_COLOR_LIGHT (white) for strong visual pop */}
-          <thead className="sticky top-0 z-10" style={{ backgroundColor: CARD_COLOR_LIGHT }}>
-            <tr>
-              {Object.keys(data[0]).map((header) => (
-                <th
-                  key={header}
-                  className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap"
-                  style={darkTextShadow} // Use dark text on the light header
-                >
-                  {header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-700">
-            {data.slice(0, 100).map((row, rowIndex) => (
-              <tr key={rowIndex} className="hover:bg-[#325F4C]">
-                {Object.values(row).map((value, colIndex) => (
-                  <td
-                    key={colIndex}
-                    className="px-6 py-4 whitespace-nowrap text-sm"
-                    style={chalkShadow} // Keep standard chalk white text for table body on dark green
-                  >
-                    {value}
-                  </td>
-                ))}
-              </tr>
-            ))}
-             {data.length > 100 && (
-                <tr>
-                    <td colSpan={Object.keys(data[0]).length} className="px-6 py-4 text-center text-sm italic" style={chalkShadow}>
-                        ... Showing first 100 rows only ...
-                    </td>
-                </tr>
-            )}
-          </tbody>
-        </table>
-      ) : (
-        <p className="text-xl text-center p-8" style={chalkShadow}>No data available to display.</p>
-      )}
-    </div>
-  );
-  
-  const helpContent = (
-    <div className="mt-4 p-4 rounded-lg bg-[#325F4C]/70 border border-solid border-[#F0F0E0]/50 space-y-4">
-        <h4 className="text-xl font-bold" style={chalkShadow}>How to Use This Analyzer</h4>
-        <ul className="list-disc pl-5 space-y-2 text-sm">
-            <li style={chalkShadow}>Click **'Upload CSV'** and select one of your student feedback files (e.g., *Student Feedback 2025 T3...*).</li>
-            <li style={chalkShadow}>The app will automatically parse the data and display a **Summary** using key columns like Clarity, Engagement, and Areas for Improvement.</li>
-            <li style={chalkShadow}>Use the **Raw Data** tab to view the spreadsheet data directly in a clean table format.</li>
-            <li style={chalkShadow}>**Next Step:** I can add more advanced features, like **Text Analysis** to group similar feedback comments!</li>
-        </ul>
-    </div>
-  );
-
-  return (
-    <div className="min-h-screen p-2 sm:p-4 font-inter" style={{ backgroundColor: OUTER_FRAME }}>
-      {/* Blackboard Title Area */}
-      <header className="text-center mb-8 border-b-4 pb-4 border-solid" style={{ borderColor: FRAME_BROWN }}>
-        <h1 className="text-5xl sm:text-6xl font-black tracking-wider" style={chalkShadow}>
-          The Feedback Board
-        </h1>
-        <p className="text-xl mt-2 italic" style={chalkShadow}>
-          Chalk up some insights!
-        </p>
-      </header>
-
-      {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto">
-        {/* Upload and Status Bar - Uses CARD_COLOR for contrast */}
-        <div className="flex flex-col sm:flex-row items-center justify-between p-4 mb-4 rounded-lg" style={{ backgroundColor: CARD_COLOR_LIGHT, border: `2px solid ${FRAME_BROWN}` }}>
-          
-          <div className="flex items-center space-x-4 mb-4 sm:mb-0">
-            <label className="cursor-pointer">
-              <input type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
-              <ChalkButton icon={Upload} onClick={() => document.querySelector('input[type="file"]').click()}>
-                {fileName ? `Re-upload: ${fileName}` : 'Upload CSV File'}
-              </ChalkButton>
-            </label>
-            <ChalkButton icon={showHelp ? ChevronUp : ChevronDown} onClick={() => setShowHelp(prev => !prev)}>
-                {showHelp ? 'Hide Help' : 'Show Help'}
-            </ChalkButton>
-          </div>
-
-          <div className="flex items-center text-lg text-right" style={darkTextShadow}>
-            {loading && (
-              <span className="flex items-center text-yellow-600">
-                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                Parsing data...
-              </span>
-            )}
-            {error && <span className="text-red-700">{error}</span>}
-            {data && !loading && !error && (
-              <span className="text-green-700">
-                {data.length} records loaded successfully from {fileName}.
-              </span>
-            )}
-            {!file && !loading && !error && (
-                <span className="text-gray-500">
-                    Awaiting CSV file upload.
-                </span>
-            )}
-          </div>
-        </div>
-
-        {showHelp && helpContent}
-        
-        {/* Tabs and Analysis Area - Uses BLACKBOARD_SURFACE */}
-        {data && (
-          <div className="mt-8">
-            <div className="flex flex-wrap justify-center mb-6">
-              <ChalkButton active={activeTab === 'summary'} onClick={() => setActiveTab('summary')} icon={BarChart2}>
-                Summary Analysis
-              </ChalkButton>
-              <ChalkButton active={activeTab === 'raw'} onClick={() => setActiveTab('raw')} icon={MessageSquare}>
-                Raw Data View
-              </ChalkButton>
-            </div>
-
-            <div className="min-h-[60vh] p-4 rounded-lg shadow-inner" style={{ backgroundColor: BLACKBOARD_SURFACE, border: `4px solid ${FRAME_BROWN}`, color: CHALK_WHITE }}>
-              {activeTab === 'summary' && <SummaryView />}
-              {activeTab === 'raw' && <RawDataView />}
-            </div>
-          </div>
-        )}
-      </main>
-    </div>
-  );
-};
-
-export default App;
+    </script>
+</body>
+</html>
