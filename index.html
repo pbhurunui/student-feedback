@@ -76,6 +76,11 @@
             background-color: #e5930e;
             transform: translateY(-1px);
         }
+        .drag-over {
+            border-color: #fcd34d !important; /* Tailwind yellow-300 */
+            background-color: rgba(252, 211, 77, 0.1) !important;
+            box-shadow: 0 0 10px rgba(252, 211, 77, 0.5);
+        }
     </style>
 </head>
 <body class="p-4 md:p-8">
@@ -84,23 +89,31 @@
 
         <header class="text-center mb-10">
             <h1 class="text-4xl md:text-5xl font-extrabold chalk-text mb-2">Live Teaching Effectiveness Dashboard</h1>
-            <p class="text-xl chalk-text font-light">Upload New Feedback Data for Instant Analysis</p>
+            <p class="text-xl chalk-text font-light">Upload Student Feedback & Paste Observation Reports for Instant Analysis</p>
         </header>
         
-        <!-- File Upload Section -->
+        <!-- File Input Section -->
         <section id="upload-section" class="mb-10 p-6 score-box border-2 border-dashed border-gray-500 rounded-xl">
-            <h2 class="text-2xl font-bold chalk-text mb-4 text-yellow-400">Upload Data Files</h2>
+            <h2 class="text-2xl font-bold chalk-text mb-4 text-yellow-400">Data Input</h2>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <!-- Student Feedback Files -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <!-- Student Feedback Files (CSV) with Drag and Drop -->
                 <div>
-                    <label class="block text-sm font-medium chalk-text mb-1">Student Feedback CSVs (Multiple OK)</label>
-                    <input type="file" id="feedback-files" multiple accept=".csv" class="w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-700/50 file:text-white hover:file:bg-green-600/50" />
+                    <label class="block text-sm font-medium chalk-text mb-1 text-yellow-300">Student Feedback CSVs (Drag & Drop or Click)</label>
+                    <!-- Hidden input to hold the file list -->
+                    <input type="file" id="feedback-files" multiple accept=".csv" class="hidden" /> 
+                    
+                    <div id="drop-zone" class="border-2 border-dashed border-gray-400 rounded-lg p-6 text-center cursor-pointer transition duration-200 hover:border-yellow-300 hover:bg-gray-700/30">
+                        <p id="drop-text" class="chalk-text text-lg">Drag & drop your **CSV files** here, or click to browse.</p>
+                        <p id="file-count" class="text-sm text-green-300 mt-2 hidden">0 files selected.</p>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-2">Note: For Google Drive files, please **download** them first, then drop here.</p>
                 </div>
-                <!-- Observation Files -->
+
+                <!-- Observation Text (Google Doc Paste) -->
                 <div>
-                    <label class="block text-sm font-medium chalk-text mb-1">Lesson Observation CSVs (Multiple OK)</label>
-                    <input type="file" id="observation-files" multiple accept=".csv" class="w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-700/50 file:text-white hover:file:bg-blue-600/50" />
+                    <label class="block text-sm font-medium chalk-text mb-1 text-pink-300">Observation Report(s) (Paste Google Doc Content)</label>
+                    <textarea id="observation-text" rows="8" placeholder="Paste the full text of one or more observation reports here. Separate multiple reports with a blank line or '--- NEW OBSERVATION ---'." class="w-full p-3 rounded-lg bg-gray-700/50 text-gray-200 border border-gray-600 focus:ring-pink-500 focus:border-pink-500 placeholder-gray-500"></textarea>
                 </div>
             </div>
 
@@ -160,7 +173,7 @@
                     <div class="score-box p-6 rounded-xl">
                         <h3 class="text-xl font-semibold chalk-text mb-4 text-pink-300">4. Professional Observation Metrics</h3>
                         <div id="observation-metrics">
-                            <p class="chalk-text p-4 text-center">Upload observation files to see results.</p>
+                            <p class="chalk-text p-4 text-center">Paste observation text to see results.</p>
                         </div>
                     </div>
 
@@ -172,10 +185,10 @@
 
     <script>
         // =================================================================
-        // IN-BROWSER JAVASCRIPT ANALYSIS ENGINE
+        // IN-BROWSER JAVASCRIPT ANALYSIS ENGINE (with LLM Integration & DND)
         // =================================================================
         
-        // --- 1. Scoring Mappings (Must match your form responses) ---
+        // --- 1. Scoring Mappings (Student Feedback) ---
         const CLARITY_INTEREST_MAP = {
             'Very Clear': 5, 'Very Interesting': 5,
             'Clear': 4, 'Interesting': 4,
@@ -196,7 +209,7 @@
             'Very Comfortable': 5, 'Comfortable': 4, 'Not Comfortable': 1
         };
         
-        // Hypothetical required columns for Student Feedback
+        // Hypothetical required columns for Student Feedback (must match your forms)
         const FEEDBACK_COL_MAP = {
             'How clearly do I explain the lessons?': 'Clarity_Score',
             'How interesting are the lessons?': 'Interest_Score',
@@ -213,16 +226,7 @@
             'What do you think could be improved about how I teach?': 'Qual_Improvement'
         };
 
-        // Hypothetical required columns for Lesson Observations
-        const OBSERVATION_COL_MAP = {
-            'Lesson Pace (1-5)': 'Pace',
-            'Student Engagement (1-5)': 'Engagement',
-            'Classroom Management (1-5)': 'Management',
-            'Subject': 'Subject'
-        };
-
-
-        // --- 2. Data Parsing and Preparation Functions ---
+        // --- 2. Shared Data Processing Utilities ---
 
         /** Simple CSV parsing function for in-browser use. */
         const csvToJson = (csvText, fileName) => {
@@ -242,7 +246,8 @@
                     let value = values[index] ? values[index].trim().replace(/"/g, '') : '';
                     obj[header] = value;
                 });
-                obj['Source_Term'] = fileName.replace(".csv", "").split(" - ")[0].trim();
+                // Source Term is usually derived from the filename of the form response
+                obj['Source_Term'] = fileName.replace(".csv", "").split(" - ")[0].trim(); 
                 data.push(obj);
             }
             return data;
@@ -276,26 +281,22 @@
              });
              return df;
         };
-
-        const calculateAverage = (arr, keys) => {
-            if (arr.length === 0) return 0;
-            const sum = arr.reduce((acc, obj) => {
-                let rowSum = 0;
-                let count = 0;
-                keys.forEach(key => {
-                    const value = parseFloat(obj[key]);
-                    if (!isNaN(value)) {
-                        rowSum += value;
-                        count++;
-                    }
-                });
-                return acc + (count > 0 ? rowSum / count : 0);
-            }, 0);
-            return sum / arr.length;
-        };
-
+        
         // --- 3. Student Feedback Analysis Logic ---
-
+        const getTopWords = (texts, n = 5) => {
+            const text = texts.join(' ').toLowerCase();
+            const stopWords = new Set(['the', 'a', 'and', 'to', 'is', 'i', 'of', 'in', 'you', 'it', 'me', 'that', 'but', 'how', 'we', 'do', 'or', 'so', 'for', 'my', 'about', 'on', 'your', 'with', 'dont', 'not', 'no', 'what', 'like', 'be', 'can', 'get', 'was', 'very', 'always', 'much', 'just', 'we', 'our', 'could', 'would', 'them']);
+            const words = text.split(/\s+/).map(word => word.replace(/[^a-z0-9]/g, '').trim()).filter(word => word.length > 2 && !stopWords.has(word));
+            
+            const wordCounts = {};
+            words.forEach(word => {
+                wordCounts[word] = (wordCounts[word] || 0) + 1;
+            });
+            
+            const sortedWords = Object.entries(wordCounts).sort(([, countA], [, countB]) => countB - countA);
+            return sortedWords.slice(0, n).map(([word]) => word.charAt(0).toUpperCase() + word.slice(1));
+        };
+        
         const analyzeStudentFeedback = (dataFrames) => {
             let combinedData = dataFrames.flat();
             if (combinedData.length === 0) return { overallMetrics: [], subjectAverages: {}, qualitative: { positive: [], improvement: [] } };
@@ -305,7 +306,6 @@
             // Apply scoring
             const scoreCols = [];
             combinedData.forEach(row => {
-                // Renaming and Scoring based on keys
                 Object.keys(FEEDBACK_COL_MAP).forEach(originalKey => {
                     const newKey = FEEDBACK_COL_MAP[originalKey];
                     const value = row[originalKey] || '';
@@ -323,7 +323,6 @@
                         row[newKey] = score;
                         if (!scoreCols.includes(newKey)) scoreCols.push(newKey);
                     } else if (newKey === 'Subject') {
-                        // Already handled by cleanSubject, ensure key is present
                         row[newKey] = row[newKey] || 'Unspecified';
                     } else if (newKey.startsWith('Qual_')) {
                         row[newKey] = value;
@@ -344,7 +343,7 @@
                 termAverages[term] = termAverages[term] || { count: 0, totalScores: {} };
                 termAverages[term].count++;
                 scoreCols.concat(['Overall_Avg_Score']).forEach(col => {
-                    termAverages[term].totalScores[col] = (termAverages[term].totalScores[col] || 0) + row[col];
+                    termAverages[term].totalScores[col] = (termAverages[term].totalScores[col] || 0) + (row[col] || 0);
                 });
             });
 
@@ -389,7 +388,7 @@
                 subjectTerms[key].data.push(row);
                 
                 scoreCols.concat(['Overall_Avg_Score']).forEach(col => {
-                    subjectTerms[key].totalScores[col] = (subjectTerms[key].totalScores[col] || 0) + row[col];
+                    subjectTerms[key].totalScores[col] = (subjectTerms[key].totalScores[col] || 0) + (row[col] || 0);
                 });
             });
 
@@ -404,7 +403,7 @@
                 });
                 
                 const lowestScoreCol = scoreCols.reduce((minCol, col) => 
-                    avgScores[col] < avgScores[minCol] ? col : minCol, scoreCols[0]
+                    (avgScores[col] || 0) < (avgScores[minCol] || 0) ? col : minCol, scoreCols[0]
                 );
                 const lowestAreaName = lowestScoreCol.replace('_Score', '').replace('_', ' ').split('(')[0].trim().toUpperCase();
 
@@ -430,26 +429,125 @@
             return { overallMetrics, subjectAverages, qualitative: { positive: positiveWords, improvement: improvementWords } };
         };
 
-        // --- 4. Lesson Observation Analysis Logic ---
 
-        const analyzeObservationData = (dataFrames) => {
-            let combinedData = dataFrames.flat();
+        // --- 4. LLM API Call for Observation Data Extraction ---
+        const API_MODEL = 'gemini-2.5-flash-preview-05-20';
+        const API_KEY = "";
+        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${API_MODEL}:generateContent?key=${API_KEY}`;
+        
+        /**
+         * Uses Gemini to extract structured observation data from unstructured text.
+         * @param {string} rawText - The text content of the observation report(s).
+         * @returns {Promise<Array<Object>>} - An array of structured observation objects.
+         */
+        const extractObservationDataWithGemini = async (rawText) => {
+            const systemPrompt = `You are a data extraction specialist. Your task is to analyze raw lesson observation reports provided as unstructured text. Identify and extract the required structured metrics, which must be scores on a 1-5 scale, as well as the subject and term of the observation. 
+
+            Instructions:
+            1. Analyze the text for explicit scores (1-5) or infer them based on the qualitative tone (e.g., 'Excellent pacing' = 5, 'Needs improvement in engagement' = 2, 'Satisfactory' = 3).
+            2. If you cannot find a subject or term, use 'Unspecified' for that field.
+            3. The user may paste multiple observation reports, separated by a blank line, a series of dashes (---), or other separators. You must process all distinct reports and return an array of objects, one for each report.
+            4. Only return the final JSON array. Do not add any conversational text or markdown formatting outside the JSON object.
+            
+            Metrics to Extract (1-5 Scale):
+            - Pace: Lesson Pacing and Structure
+            - Engagement: Student Participation and Focus
+            - Management: Classroom Management and Discipline
+            - Subject: The subject taught
+            - Source_Term: The term or date of the observation (e.g., T3 2025 Observation)`;
+
+            const payload = {
+                contents: [{ parts: [{ text: rawText }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "ARRAY",
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                "Pace": { "type": "INTEGER" },
+                                "Engagement": { "type": "INTEGER" },
+                                "Management": { "type": "INTEGER" },
+                                "Subject": { "type": "STRING" },
+                                "Source_Term": { "type": "STRING" }
+                            },
+                            propertyOrdering: ["Pace", "Engagement", "Management", "Subject", "Source_Term"]
+                        }
+                    }
+                }
+            };
+            
+            const maxRetries = 3;
+            let lastError = null;
+            
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+                try {
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    
+                    const candidate = result.candidates?.[0];
+                    if (candidate && candidate.content?.parts?.[0]?.text) {
+                        const jsonString = candidate.content.parts[0].text;
+                        // The model returns a stringified JSON array, so parse it.
+                        try {
+                            const parsedJson = JSON.parse(jsonString);
+                            if (Array.isArray(parsedJson)) {
+                                return parsedJson;
+                            } else {
+                                // Sometimes the model returns a single object instead of an array with one object
+                                if (typeof parsedJson === 'object' && parsedJson !== null) {
+                                    return [parsedJson];
+                                }
+                                throw new Error("LLM response did not return an array of observations.");
+                            }
+                        } catch (e) {
+                            throw new Error(`Failed to parse LLM JSON output: ${e.message}`);
+                        }
+                    }
+                    throw new Error("LLM returned an invalid candidate structure.");
+                } catch (error) {
+                    lastError = error;
+                    if (attempt < maxRetries - 1) {
+                        const delay = Math.pow(2, attempt) * 1000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    } else {
+                        throw new Error(`Failed to extract data after ${maxRetries} attempts: ${lastError.message}`);
+                    }
+                }
+            }
+        };
+
+        // --- 5. Lesson Observation Analysis Logic ---
+        
+        /**
+         * Analyzes the structured observation data (either from LLM or CSV)
+         * @param {Array<Object>} observationData - Array of observation objects.
+         * @returns {Object}
+         */
+        const analyzeObservationData = (observationData) => {
+            let combinedData = observationData;
             if (combinedData.length === 0) return { overallMetrics: [], subjectAverages: {} };
 
-            // Rename and ensure numeric scores
+            // Ensure numeric scores and clean subjects
             const OBS_SCORE_COLS = ['Pace', 'Engagement', 'Management'];
+            
             combinedData.forEach(row => {
-                Object.keys(OBSERVATION_COL_MAP).forEach(originalKey => {
-                    const newKey = OBSERVATION_COL_MAP[originalKey];
-                    let value = row[originalKey] ? parseFloat(row[originalKey]) : 0;
-                    if (newKey === 'Subject') {
-                        value = row[originalKey] || 'Unspecified';
-                    }
-                    row[newKey] = value;
+                row.Subject = row.Subject || 'Unspecified';
+                row.Source_Term = row.Source_Term || 'Unspecified Observation';
+                OBS_SCORE_COLS.forEach(col => {
+                    row[col] = parseFloat(row[col]) || 0; // Convert scores to numbers
                 });
             });
-            
-            combinedData = cleanSubject(combinedData.filter(r => r.Subject && r.Subject !== 'Unspecified'));
 
             // Calculate Overall Score
             combinedData.forEach(row => {
@@ -457,7 +555,7 @@
                 row['Obs_Overall_Score'] = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
             });
 
-            // Overall Term Averages (for the specific observation metrics)
+            // Overall Term Averages 
             const termAverages = {};
             combinedData.forEach(row => {
                 const term = row['Source_Term'];
@@ -480,69 +578,37 @@
 
             // Subject Averages
             const subjectAverages = {};
-            const subjectTerms = {};
-
             combinedData.forEach(row => {
-                const key = `${row['Subject']}__${row['Source_Term']}`;
-                subjectTerms[key] = subjectTerms[key] || { data: [], totalScores: {} };
-                subjectTerms[key].data.push(row);
-                
-                OBS_SCORE_COLS.concat(['Obs_Overall_Score']).forEach(col => {
-                    subjectTerms[key].totalScores[col] = (subjectTerms[key].totalScores[col] || 0) + row[col];
-                });
-            });
-
-            Object.keys(subjectTerms).forEach(key => {
-                const [subject, term] = key.split('__');
-                const group = subjectTerms[key];
-                const count = group.data.length;
-                
+                const subject = row['Subject'];
                 const avgScores = {};
                 OBS_SCORE_COLS.forEach(col => {
-                    avgScores[col] = group.totalScores[col] / count;
+                    avgScores[col] = row[col];
                 });
                 
                 const lowestScoreCol = OBS_SCORE_COLS.reduce((minCol, col) => 
                     avgScores[col] < avgScores[minCol] ? col : minCol, OBS_SCORE_COLS[0]
                 );
                 
+                // For observation, we typically only report the latest single result
                 subjectAverages[subject] = {
-                    latest_term: term,
-                    latest_score: group.totalScores['Obs_Overall_Score'] / count,
+                    latest_term: row['Source_Term'],
+                    latest_score: row['Obs_Overall_Score'],
                     lowest_area: lowestScoreCol.toUpperCase()
                 };
             });
             
             return { overallMetrics, subjectAverages };
         };
-        
-        // --- 5. Qualitative Helper ---
-        
-        const getTopWords = (texts, n = 5) => {
-            const text = texts.join(' ').toLowerCase();
-            // Basic stop word and punctuation removal
-            const stopWords = new Set(['the', 'a', 'and', 'to', 'is', 'i', 'of', 'in', 'you', 'it', 'me', 'that', 'but', 'how', 'we', 'do', 'or', 'so', 'for', 'my', 'about', 'on', 'your', 'with', 'dont', 'not', 'no', 'what', 'like', 'be', 'can', 'get', 'was', 'very', 'always', 'much', 'just', 'we', 'our', 'could', 'would', 'them']);
-            const words = text.split(/\s+/).map(word => word.replace(/[^a-z0-9]/g, '').trim()).filter(word => word.length > 2 && !stopWords.has(word));
-            
-            const wordCounts = {};
-            words.forEach(word => {
-                wordCounts[word] = (wordCounts[word] || 0) + 1;
-            });
-            
-            const sortedWords = Object.entries(wordCounts).sort(([, countA], [, countB]) => countB - countA);
-            return sortedWords.slice(0, n).map(([word]) => word.charAt(0).toUpperCase() + word.slice(1));
-        };
 
 
-        // --- 6. Rendering Functions (Adapted for new data structure) ---
+        // --- 6. Rendering Functions ---
         
         let analysisResults = { studentFeedbackData: null, observationData: null };
-
 
         const renderOverallScores = (metrics) => {
             const container = document.getElementById('overall-scores');
             if (!metrics || metrics.length === 0) {
-                container.innerHTML = `<p class="chalk-text text-lg p-4 text-red-300">No student feedback data available for term comparison.</p>`;
+                container.innerHTML = `<p class="chalk-text text-lg p-4 text-gray-400">No student feedback data available for term comparison.</p>`;
                 return;
             }
 
@@ -554,8 +620,8 @@
                     <thead>
                         <tr class="chalk-text text-lg border-b border-gray-500">
                             <th class="p-3 font-bold">Metric (Score 1-5)</th>
-                            <th class="p-3 font-bold text-center">${t1Label} (Avg)</th>
-                            <th class="p-3 font-bold text-center">${t3Label} (Avg)</th>
+                            <th class="p-3 font-bold text-center">${t1Label.split(' ')[0]} (Avg)</th>
+                            <th class="p-3 font-bold text-center">${t3Label.split(' ')[0]} (Avg)</th>
                             <th class="p-3 font-bold text-center">Change</th>
                             <th class="p-3 font-bold">Trend</th>
                         </tr>
@@ -589,20 +655,25 @@
             const container = document.getElementById('subject-trends');
             container.innerHTML = ''; 
 
-            if (!studentAverages || Object.keys(studentAverages).length === 0) {
-                 container.innerHTML = `<p class="chalk-text p-4 md:col-span-3 text-center text-red-300">No subject-specific student feedback available.</p>`;
+            const allSubjects = new Set([...Object.keys(studentAverages), ...Object.keys(obsAverages)]);
+            if (allSubjects.size === 0) {
+                 container.innerHTML = `<p class="chalk-text p-4 md:col-span-3 text-center text-gray-400">No subject-specific data available yet.</p>`;
                  return;
             }
 
-            for (const subject in studentAverages) {
+            allSubjects.forEach(subject => {
                 const studentData = studentAverages[subject];
-                const latestScore = studentData.latest_score.toFixed(2);
-                const lowestStudentArea = studentData.lowest_area;
+                const obsData = obsAverages[subject];
+
+                // Student Metrics
+                const latestScore = studentData ? studentData.latest_score.toFixed(2) : 'N/A';
+                const lowestStudentArea = studentData ? studentData.lowest_area : 'N/A (No Feedback)';
+                const studentTerm = studentData ? studentData.latest_term.split(' ')[0] : 'N/A';
                 
                 // Get history for trend calculation
-                const history = studentData.full_history;
                 let changeIndicator = '';
-                if (history && history.length > 1) {
+                if (studentData && studentData.full_history.length > 1) {
+                    const history = studentData.full_history;
                     const latestTermScore = history[history.length - 1].Overall_Avg_Score;
                     const earliestTermScore = history[0].Overall_Avg_Score;
                     
@@ -613,39 +684,37 @@
                     changeIndicator = `<p class="text-sm chalk-text mt-1">${earliestLabel} vs ${latestLabel}: ${trend}</p>`;
                 }
                 
-                // Get Observation Data (if available for this subject)
-                const obsData = obsAverages ? obsAverages[subject] : null;
+                // Observation Metrics
                 const obsScore = obsData ? obsData.latest_score.toFixed(2) : 'N/A';
-                const obsLowestArea = obsData ? obsData.lowest_area : 'N/A';
+                const obsLowestArea = obsData ? obsData.lowest_area : 'N/A (No Observation)';
+                const obsTerm = obsData ? obsData.latest_term.split(' ')[0] : 'N/A';
 
                 // Card Structure
                 const cardHTML = `
                     <div class="score-box p-6 rounded-xl hover:ring-4 hover:ring-yellow-500/50 transition duration-300">
-                        <h3 class="text-2xl font-bold chalk-text mb-3 text-blue-300">${subject} (${studentData.latest_term.split(' ')[0]})</h3>
+                        <h3 class="text-2xl font-bold chalk-text mb-3 text-blue-300">${subject}</h3>
                         
                         <div class="flex justify-between items-end mb-4 border-b border-gray-600 pb-2">
                              <div>
-                                <p class="text-sm chalk-text">Student Avg.</p>
+                                <p class="text-sm chalk-text">Student Avg. (${studentTerm})</p>
                                 <p class="text-4xl font-extrabold ${latestScore >= 4.3 ? 'text-yellow-300' : 'text-orange-300'}">${latestScore}</p>
                                 ${changeIndicator}
                             </div>
-                            ${obsData ? `
-                                <div class="text-right">
-                                    <p class="text-sm chalk-text">Obs. Avg.</p>
-                                    <p class="text-2xl font-bold text-pink-300">${obsScore}</p>
-                                </div>
-                            ` : ''}
+                            <div>
+                                <p class="text-sm chalk-text text-right">Obs. Score (${obsTerm})</p>
+                                <p class="text-4xl font-extrabold text-pink-300 text-right">${obsScore}</p>
+                            </div>
                         </div>
                         
                         <div class="mt-2">
-                            <p class="text-sm font-light chalk-text mb-1 text-yellow-500">Focus Areas:</p>
-                            <p class="text-base font-semibold text-red-300">Student: ${lowestStudentArea}</p>
-                            ${obsData ? `<p class="text-base font-semibold text-red-300">Observer: ${obsLowestArea}</p>` : ''}
+                            <p class="text-sm font-light chalk-text mb-1 text-yellow-500">Key Focus Areas:</p>
+                            <p class="text-base font-semibold text-red-300">Student Feedback: ${lowestStudentArea}</p>
+                            <p class="text-base font-semibold text-red-300">Observation: ${obsLowestArea}</p>
                         </div>
                     </div>
                 `;
                 container.innerHTML += cardHTML;
-            }
+            });
         };
 
         const renderQualitativeFeedback = (qualitative) => {
@@ -668,7 +737,7 @@
              const container = document.getElementById('observation-metrics');
 
              if (!obsMetrics || obsMetrics.length === 0) {
-                 container.innerHTML = `<p class="chalk-text text-lg text-red-300">No professional observation data has been analyzed.</p>`;
+                 container.innerHTML = `<p class="chalk-text text-lg text-gray-400">No professional observation data has been analyzed.</p>`;
                  return;
              }
              
@@ -677,7 +746,6 @@
              const latestTerm = latestObs.Source_Term;
              const overallScore = latestObs.Obs_Overall_Score.toFixed(2);
              
-             // Define the key metrics to display from the observation
              const metricsToDisplay = [
                  { label: 'Lesson Pace', key: 'Pace' },
                  { label: 'Student Engagement', key: 'Engagement' },
@@ -685,9 +753,9 @@
              ];
 
              let html = `
-                <p class="text-lg font-semibold chalk-text mb-3">Latest Term: <span class="text-yellow-300">${latestTerm}</span></p>
+                <p class="text-lg font-semibold chalk-text mb-3">Latest Report: <span class="text-yellow-300">${latestTerm}</span></p>
                 <div class="mb-4 p-4 rounded-lg bg-gray-700/30">
-                    <p class="text-xl chalk-text font-light">Overall Observation Score</p>
+                    <p class="text-xl chalk-text font-light">Overall Observation Score (Avg of Metrics)</p>
                     <p class="text-5xl font-extrabold text-pink-400">${overallScore}</p>
                 </div>
              `;
@@ -710,17 +778,64 @@
         };
 
 
-        // --- 7. Main Controller ---
+        // --- 7. Main Controller & DND Logic ---
         
         const analyzeButton = document.getElementById('analyze-button');
         const feedbackFilesInput = document.getElementById('feedback-files');
-        const observationFilesInput = document.getElementById('observation-files');
+        const observationTextInput = document.getElementById('observation-text');
         const loadingSpinner = document.getElementById('loading-spinner');
         const analyzeIcon = document.getElementById('analyze-icon');
         const analyzeText = document.getElementById('analyze-text');
         const statusMessage = document.getElementById('analysis-status');
+        
+        const dropZone = document.getElementById('drop-zone');
+        const fileCountElement = document.getElementById('file-count');
+        const dropZoneText = document.getElementById('drop-text');
 
-        const updateUIState = (isProcessing, message = '') => {
+        // DND Handlers
+        const handleDragOver = (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+            dropZoneText.textContent = 'Drop your CSV files now...';
+        };
+
+        const handleDragLeave = (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            updateDropZoneDisplay(feedbackFilesInput.files.length);
+        };
+
+        const handleDrop = (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            const files = e.dataTransfer.files;
+            
+            // Filter for CSVs only and assign to the input element
+            const csvFiles = Array.from(files).filter(file => file.type === 'text/csv' || file.name.endsWith('.csv'));
+            
+            if (csvFiles.length > 0) {
+                // Use DataTransfer object to create a FileList
+                const dataTransfer = new DataTransfer();
+                csvFiles.forEach(file => dataTransfer.items.add(file));
+                feedbackFilesInput.files = dataTransfer.files;
+                
+                updateDropZoneDisplay(csvFiles.length);
+            } else {
+                updateDropZoneDisplay(feedbackFilesInput.files.length, 'Only CSV files accepted. Try again.');
+            }
+        };
+        
+        const updateDropZoneDisplay = (count, defaultText = 'Drag & drop your **CSV files** here, or click to browse.') => {
+            dropZoneText.innerHTML = defaultText;
+            if (count > 0) {
+                fileCountElement.textContent = `${count} file${count === 1 ? '' : 's'} loaded. Click "Analyze" to proceed.`;
+                fileCountElement.classList.remove('hidden');
+            } else {
+                fileCountElement.classList.add('hidden');
+            }
+        };
+
+        const updateUIState = (isProcessing, message = '', isError = false) => {
             analyzeButton.disabled = isProcessing;
             loadingSpinner.style.display = isProcessing ? 'block' : 'none';
             analyzeIcon.style.display = isProcessing ? 'none' : 'block';
@@ -728,10 +843,12 @@
             statusMessage.textContent = message;
             statusMessage.classList.toggle('hidden', message === '');
             statusMessage.classList.remove('text-green-300', 'text-red-300');
-            if (message.includes('successfully')) {
+            if (isError) {
+                statusMessage.classList.add('text-red-300');
+            } else if (message.includes('successfully')) {
                 statusMessage.classList.add('text-green-300');
             } else if (message) {
-                statusMessage.classList.add('text-red-300');
+                statusMessage.classList.add('text-yellow-300');
             }
         };
 
@@ -739,10 +856,10 @@
             updateUIState(true);
             
             const feedbackFiles = Array.from(feedbackFilesInput.files);
-            const observationFiles = Array.from(observationFilesInput.files);
+            const observationText = observationTextInput.value.trim();
 
-            if (feedbackFiles.length === 0 && observationFiles.length === 0) {
-                updateUIState(false, 'Please select at least one CSV file to analyze.');
+            if (feedbackFiles.length === 0 && observationText.length === 0) {
+                updateUIState(false, 'Please provide data (CSV or Observation Text) to analyze.', true);
                 return;
             }
 
@@ -752,11 +869,16 @@
                 const feedbackDataFrames = await Promise.all(feedbackDataPromises);
                 const studentFeedbackResults = analyzeStudentFeedback(feedbackDataFrames);
                 
-                // 2. Process Observation Files
-                const observationDataPromises = observationFiles.map(processFile);
-                const observationDataFrames = await Promise.all(observationDataPromises);
-                const observationResults = analyzeObservationData(observationDataFrames);
+                // 2. Process Observation Data (Using LLM if text is present)
+                let structuredObservationData = [];
+                if (observationText) {
+                    updateUIState(true, '1/2. Extracting Observation Data using LLM...');
+                    structuredObservationData = await extractObservationDataWithGemini(observationText);
+                    updateUIState(true, '2/2. Analyzing Extracted Data...');
+                }
                 
+                const observationResults = analyzeObservationData(structuredObservationData);
+
                 // 3. Update Global Results and Render
                 analysisResults.studentFeedbackData = studentFeedbackResults;
                 analysisResults.observationData = observationResults;
@@ -770,14 +892,33 @@
 
             } catch (error) {
                 console.error("Analysis Error:", error);
-                updateUIState(false, `Analysis failed: ${error.message || error}. Check console for details.`);
+                // Check if the error is due to an empty response from the LLM
+                let userMessage = error.message || error;
+                if (userMessage.includes("LLM returned an invalid candidate structure")) {
+                    userMessage = "LLM Extraction Failed: The observation text was too ambiguous or empty. Please ensure the text contains subject, term, and clear feedback on Pace, Engagement, and Management (1-5 scores or descriptive text).";
+                }
+                updateUIState(false, `Analysis failed: ${userMessage}.`, true);
             }
         };
 
         window.onload = () => {
-            // Initial placeholder content if no files are loaded
             analyzeButton.addEventListener('click', startAnalysis);
-            updateUIState(false, 'Ready to upload and analyze your CSV files.');
+            updateUIState(false, 'Ready to analyze data.');
+            
+            // DND Wiring
+            dropZone.addEventListener('dragover', handleDragOver);
+            dropZone.addEventListener('dragleave', handleDragLeave);
+            dropZone.addEventListener('drop', handleDrop);
+            
+            // Click to browse wiring
+            dropZone.addEventListener('click', () => {
+                feedbackFilesInput.click();
+            });
+            
+            // Update display when using the click-to-browse method
+            feedbackFilesInput.addEventListener('change', () => {
+                updateDropZoneDisplay(feedbackFilesInput.files.length);
+            });
         };
 
     </script>
