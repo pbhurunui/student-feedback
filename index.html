@@ -7,68 +7,113 @@
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Custom styles for better visibility and flow */
+        /* Custom styles for blackboard aesthetic */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        
+        /* Deep slate background for the blackboard */
+        :root {
+            --color-blackboard: #36454F; /* Dark Slate Gray */
+            --color-chalk-light: #F0F0D0; /* Pale Yellow/Cream */
+            --color-chalk-t1: #FF9AA2; /* Light Coral Chalk */
+            --color-chalk-t3: #C7E9B0; /* Light Green Chalk */
+        }
+
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f7f7f7;
+            background-color: #f7f7f7; /* Keep outside background light */
         }
+        
+        /* Main blackboard container */
+        .blackboard-container {
+            background-color: var(--color-blackboard);
+            color: var(--color-chalk-light);
+            border: 12px solid #5C4033; /* Wood frame effect */
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Simulating chalk text effect */
+        .chalk-text {
+            text-shadow: 1px 1px 1px rgba(255, 255, 255, 0.5);
+        }
+
         .feedback-card {
             min-height: 150px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
-            transition: transform 0.2s;
+            background-color: #2F3E46; /* Slightly lighter inner slate for contrast */
+            box-shadow: none;
+            border: 1px dashed rgba(255, 255, 255, 0.3);
         }
+        
         .feedback-item {
-            border-left: 4px solid;
+            /* Inherits text color from parent */
             padding-left: 1rem;
             margin-bottom: 0.75rem;
+            line-height: 1.4;
         }
+
+        /* Specific border colors for T1/T3 feedback items */
+        .feedback-t1-item {
+            border-left: 4px solid var(--color-chalk-t1);
+        }
+        .feedback-t3-item {
+            border-left: 4px solid var(--color-chalk-t3);
+        }
+        
+        /* Upload sections styling */
+        .upload-t1-box {
+            background-color: rgba(255, 154, 162, 0.1); /* Light red tint on blackboard */
+            border-color: var(--color-chalk-t1);
+        }
+        .upload-t3-box {
+            background-color: rgba(199, 233, 176, 0.1); /* Light green tint on blackboard */
+            border-color: var(--color-chalk-t3);
+        }
+
     </style>
 </head>
 <body class="p-4 md:p-8">
 
-    <div id="app" class="max-w-7xl mx-auto bg-white p-6 md:p-10 rounded-xl shadow-2xl">
-        <h1 class="text-3xl md:text-4xl font-extrabold text-blue-700 mb-2">Feedback Comparison: T1 vs T3</h1>
-        <p class="text-gray-600 mb-8">Upload your two CSV files to compare student responses to the question: **"What do you think could be improved about how I teach?"**</p>
+    <div id="app" class="max-w-7xl mx-auto p-6 md:p-10 rounded-xl blackboard-container">
+        <h1 class="text-3xl md:text-4xl font-extrabold mb-2 chalk-text text-white">Feedback Comparison: T1 vs T3</h1>
+        <p class="mb-8 chalk-text text-gray-300">Upload your two CSV files to compare student responses to the question: **"What do you think could be improved about how I teach?"**</p>
 
         <!-- File Upload Section -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div class="p-5 border-2 border-dashed border-red-300 rounded-lg bg-red-50">
-                <label for="term1-file" class="block text-lg font-semibold mb-2 text-red-700">1. Upload Term 1 Feedback (CSV)</label>
-                <input type="file" id="term1-file" accept=".csv" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-red-500 file:text-white hover:file:bg-red-600 cursor-pointer" onchange="handleFileSelection(event, 'term1')">
-                <p id="status-term1" class="mt-2 text-sm font-medium"></p>
+            <div class="p-5 border-2 border-dashed rounded-lg upload-t1-box">
+                <label for="term1-file" class="block text-lg font-semibold mb-2 chalk-text" style="color: var(--color-chalk-t1);">1. Upload Term 1 Feedback (CSV)</label>
+                <input type="file" id="term1-file" accept=".csv" class="w-full text-sm text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold" style="--tw-bg-opacity: 0.2; background-color: rgba(255, 154, 162, 0.4); color: white;" onchange="handleFileSelection(event, 'term1')">
+                <p id="status-term1" class="mt-2 text-sm font-medium chalk-text"></p>
             </div>
 
-            <div class="p-5 border-2 border-dashed border-green-300 rounded-lg bg-green-50">
-                <label for="term3-file" class="block text-lg font-semibold mb-2 text-green-700">2. Upload Term 3 Feedback (CSV)</label>
-                <input type="file" id="term3-file" accept=".csv" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-500 file:text-white hover:file:bg-green-600 cursor-pointer" onchange="handleFileSelection(event, 'term3')">
-                <p id="status-term3" class="mt-2 text-sm font-medium"></p>
+            <div class="p-5 border-2 border-dashed rounded-lg upload-t3-box">
+                <label for="term3-file" class="block text-lg font-semibold mb-2 chalk-text" style="color: var(--color-chalk-t3);">2. Upload Term 3 Feedback (CSV)</label>
+                <input type="file" id="term3-file" accept=".csv" class="w-full text-sm text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold" style="--tw-bg-opacity: 0.2; background-color: rgba(199, 233, 176, 0.4); color: white;" onchange="handleFileSelection(event, 'term3')">
+                <p id="status-term3" class="mt-2 text-sm font-medium chalk-text"></p>
             </div>
         </div>
 
         <!-- Compare Button -->
         <div class="text-center mb-10">
-            <button id="compare-btn" onclick="compareFeedback()" disabled class="px-8 py-3 bg-blue-500 text-white font-bold text-lg rounded-full shadow-lg hover:bg-blue-600 transition duration-150 disabled:bg-gray-400 disabled:cursor-not-allowed">
+            <button id="compare-btn" onclick="compareFeedback()" disabled class="px-8 py-3 bg-gray-500 text-white font-bold text-lg rounded-full shadow-lg hover:bg-gray-600 transition duration-150 disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed border-2 border-white">
                 Compare Feedback
             </button>
         </div>
 
         <!-- Results Display Area -->
         <div id="results-area" class="mt-8 hidden">
-            <h2 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-2">Side-by-Side Comparison of Improvement Suggestions</h2>
+            <h2 class="text-2xl font-bold mb-6 border-b pb-2 text-white chalk-text">Side-by-Side Comparison of Improvement Suggestions</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <!-- Term 1 Column -->
                 <div>
-                    <h3 class="text-xl font-extrabold p-3 rounded-t-lg bg-red-500 text-white shadow-md">Term 1 Comments (<span id="count-term1">0</span>)</h3>
-                    <div id="feedback-term1" class="p-4 bg-white rounded-b-lg feedback-card border border-red-300">
+                    <h3 class="text-xl font-extrabold p-3 rounded-t-lg shadow-md chalk-text" style="background-color: var(--color-chalk-t1); color: var(--color-blackboard);">Term 1 Comments (<span id="count-term1">0</span>)</h3>
+                    <div id="feedback-term1" class="p-4 rounded-b-lg feedback-card">
                         <!-- Feedback items will be inserted here -->
                     </div>
                 </div>
 
                 <!-- Term 3 Column -->
                 <div>
-                    <h3 class="text-xl font-extrabold p-3 rounded-t-lg bg-green-500 text-white shadow-md">Term 3 Comments (<span id="count-term3">0</span>)</h3>
-                    <div id="feedback-term3" class="p-4 bg-white rounded-b-lg feedback-card border border-green-300">
+                    <h3 class="text-xl font-extrabold p-3 rounded-t-lg shadow-md chalk-text" style="background-color: var(--color-chalk-t3); color: var(--color-blackboard);">Term 3 Comments (<span id="count-term3">0</span>)</h3>
+                    <div id="feedback-term3" class="p-4 rounded-b-lg feedback-card">
                         <!-- Feedback items will be inserted here -->
                     </div>
                 </div>
@@ -139,7 +184,7 @@
         function handleFileSelection(event, term) {
             const file = event.target.files[0];
             const statusElement = document.getElementById(`status-${term}`);
-            statusElement.className = 'mt-2 text-sm font-medium'; // Reset classes
+            statusElement.className = 'mt-2 text-sm font-medium chalk-text'; // Reset classes
             document.getElementById('error-message').classList.add('hidden');
 
             if (!file) {
@@ -163,17 +208,16 @@
 
                     if (term === 'term1') {
                         term1Data = parsedData;
-                        statusElement.classList.add('text-green-600');
+                        statusElement.style.color = 'var(--color-chalk-t1)';
                         statusElement.textContent = `File loaded: ${file.name} (${parsedData.length} responses found).`;
                     } else if (term === 'term3') {
                         term3Data = parsedData;
-                        statusElement.classList.add('text-green-600');
+                        statusElement.style.color = 'var(--color-chalk-t3)';
                         statusElement.textContent = `File loaded: ${file.name} (${parsedData.length} responses found).`;
                     }
 
                 } catch (error) {
-                    statusElement.classList.remove('text-green-600');
-                    statusElement.classList.add('text-red-600');
+                    statusElement.style.color = 'var(--color-chalk-t1)';
                     statusElement.textContent = `Error reading file. Check console for details.`;
                     showError(error.message);
                     console.error("File processing error:", error);
@@ -190,12 +234,12 @@
             const compareBtn = document.getElementById('compare-btn');
             if (term1Data && term3Data) {
                 compareBtn.disabled = false;
-                compareBtn.classList.remove('disabled:bg-gray-400');
-                compareBtn.classList.add('bg-blue-600');
+                compareBtn.classList.remove('disabled:bg-gray-700', 'disabled:text-gray-400');
+                compareBtn.classList.add('bg-white', 'text-black', 'hover:bg-gray-200');
             } else {
                 compareBtn.disabled = true;
-                compareBtn.classList.add('disabled:bg-gray-400');
-                compareBtn.classList.remove('bg-blue-600');
+                compareBtn.classList.add('disabled:bg-gray-700', 'disabled:text-gray-400');
+                compareBtn.classList.remove('bg-white', 'text-black', 'hover:bg-gray-200');
             }
         }
 
@@ -213,8 +257,8 @@
 
             document.getElementById('results-area').classList.remove('hidden');
 
-            renderComments('feedback-term1', term1Comments, 'border-red-500');
-            renderComments('feedback-term3', term3Comments, 'border-green-500');
+            renderComments('feedback-term1', term1Comments, 'feedback-t1-item');
+            renderComments('feedback-term3', term3Comments, 'feedback-t3-item');
 
             document.getElementById('count-term1').textContent = term1Comments.length;
             document.getElementById('count-term3').textContent = term3Comments.length;
@@ -224,38 +268,55 @@
 
         /**
          * Filters data to extract comments from the TARGET_COLUMN, removing empty/placeholder entries.
+         * Now uses a more robust list of non-constructive phrases, allowing longer comments that start with filler.
          */
         function extractComments(data) {
+            // Expanded list of non-constructive phrases (case-insensitive, trimmed comparison)
+            const nonConstructivePhrases = new Set([
+                'nothing', 'no', '-', 'none', 'unsure', 'not sure', 'nope', 'n/a', 'na',
+                'no comment', 'no comments', 'all good', 'great', 'fine', 'perfect',
+                'u dont have to improve', 'you dont have to improve', 'you dont have to inprove', 
+                'i dont think anything needs to be inproved', 'i dont think anything needs to be improved',
+                'you are a great ako teacher :)', 'you are a great ako teacher'
+            ]);
+
             return data
-                .map(row => row[TARGET_COLUMN] || '') // Get the comment, default to empty string
+                .map(row => (row[TARGET_COLUMN] || '').trim())
                 .filter(comment => {
-                    const trimmed = comment.trim().toLowerCase();
-                    // Filter out comments that are empty, "nothing", "no", or just a dash
-                    return trimmed.length > 0 &&
-                           trimmed !== 'nothing' &&
-                           trimmed !== 'no' &&
-                           trimmed !== '-' &&
-                           trimmed !== 'none' &&
-                           trimmed !== 'no' &&
-                           trimmed !== 'unsure'
+                    const trimmedLower = comment.toLowerCase();
+                    
+                    // 1. Must not be empty
+                    if (comment.length === 0) return false;
+                    
+                    // 2. If it's an exact match for a non-constructive phrase, filter it out.
+                    if (nonConstructivePhrases.has(trimmedLower)) return false;
+
+                    // 3. SPECIAL CASE: Filter out comments that start with "not much" or "i don't think" 
+                    // and are short (less than 30 characters), assuming they are just positive filler.
+                    if ((trimmedLower.startsWith('not much') || trimmedLower.startsWith('i dont think')) && comment.length < 30) {
+                        return false;
+                    }
+                    
+                    // 4. If it passes all filters, keep the comment.
+                    return true;
                 });
         }
 
         /**
          * Renders the extracted comments into the specified element.
          */
-        function renderComments(elementId, comments, borderColor) {
+        function renderComments(elementId, comments, itemClass) {
             const container = document.getElementById(elementId);
             container.innerHTML = ''; // Clear previous results
 
             if (comments.length === 0) {
-                container.innerHTML = `<p class="text-gray-500 italic">No constructive feedback comments found after filtering out 'nothing', 'no', and empty responses.</p>`;
+                container.innerHTML = `<p class="text-gray-400 italic chalk-text">No constructive feedback comments found after filtering out 'nothing', 'no', and empty responses.</p>`;
                 return;
             }
 
             comments.forEach((comment, index) => {
                 const item = document.createElement('div');
-                item.className = `feedback-item ${borderColor} text-gray-700`;
+                item.className = `${itemClass} chalk-text text-white`;
                 item.innerHTML = `<span class="font-medium text-xs text-gray-400">${index + 1}.</span> ${comment}`;
                 container.appendChild(item);
             });
