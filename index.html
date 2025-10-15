@@ -107,7 +107,8 @@
                         <p id="drop-text" class="chalk-text text-lg">Drag & drop your **CSV files** here, or click to browse.</p>
                         <p id="file-count" class="text-sm text-green-300 mt-2 hidden">0 files selected.</p>
                     </div>
-                    <p class="text-xs text-gray-400 mt-2">Note: For Google Drive files, please **download** them first, then drop here.</p>
+                    <!-- UPDATED INSTRUCTIONAL TEXT -->
+                    <p class="text-sm text-red-300 font-bold mt-2">IMPORTANT: Excel files (.xlsx) MUST be saved as **CSV (Comma Separated Values)** first.</p>
                 </div>
 
                 <!-- Observation Text (Google Doc Paste) -->
@@ -235,7 +236,7 @@
             'Very Comfortable': 5, 'Comfortable': 4, 'Not Comfortable': 1
         };
         
-        // Hypothetical required columns for Student Feedback (must match your forms)
+        // Hypothetical required columns for Student Feedback (TRIMMED keys for robustness)
         const FEEDBACK_COL_MAP = {
             'How clearly do I explain the lessons?': 'Clarity_Score',
             'How interesting are the lessons?': 'Interest_Score',
@@ -243,7 +244,8 @@
             'Do I encourage you to ask questions or participate in class?': 'Encourage_Score',
             'How much do you enjoy participating in class activities? e.g. pair work, group work, class discussions': 'Participate_Score',
             'Do I make learning engaging and enjoyable?': 'Engaging_Score',
-            'Do I help you when you don’t understand something? ': 'Help_Score',
+            // IMPORTANT: Removed the trailing space from the key to match the cleaned header
+            'Do I help you when you don’t understand something?': 'Help_Score', 
             'How comfortable do you feel asking for help in class?': 'Comfort_Score',
             'Do I create an environment where you feel safe and heard?': 'Safe_Score',
             'How quickly do I give feedback on work or assignments?': 'Feedback_Speed_Score',
@@ -254,26 +256,61 @@
 
         // --- 2. Shared Data Processing Utilities ---
 
-        /** Simple CSV parsing function for in-browser use. */
+        /** * Robust custom CSV parsing function for in-browser use. 
+         * Handles quotes and commas within fields, and aggressively trims headers.
+         */
         const csvToJson = (csvText, fileName) => {
             const lines = csvText.split(/\r?\n/).filter(line => line.trim() !== '');
             if (lines.length < 2) return [];
 
-            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            // 1. Process Headers: Trim and clean up header names
+            const rawHeaders = lines[0].split(',');
+            // Trim all headers aggressively. This fixes alignment issues caused by spaces.
+            const headers = rawHeaders.map(h => h.trim().replace(/"/g, '')); 
+            
             const data = [];
 
+            // 2. Process Rows using a quote-aware state machine (much more reliable than regex)
             for (let i = 1; i < lines.length; i++) {
-                // Simple regex to handle commas inside quoted fields (best effort)
-                const values = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,\s*|\s*$)/g) || [];
-                if (values.length !== headers.length) continue;
+                const line = lines[i];
+                let values = [];
+                let inQuote = false;
+                let currentVal = '';
+                
+                for (let j = 0; j < line.length; j++) {
+                    const char = line[j];
+                    if (char === '"') {
+                        // Handle escaped quotes within a field
+                        if (j + 1 < line.length && line[j + 1] === '"' && inQuote) {
+                            currentVal += '"';
+                            j++; // Skip the next quote
+                            continue;
+                        }
+                        inQuote = !inQuote;
+                    } else if (char === ',' && !inQuote) {
+                        // Found a separator outside of quotes
+                        values.push(currentVal.trim());
+                        currentVal = '';
+                    } else {
+                        currentVal += char;
+                    }
+                }
+                // Push the last value
+                values.push(currentVal.trim());
+
+                if (values.length !== headers.length) {
+                    console.warn(`Row ${i+1} has ${values.length} values, but ${headers.length} headers. Skipping.`);
+                    continue;
+                }
 
                 const obj = {};
                 headers.forEach((header, index) => {
-                    let value = values[index] ? values[index].trim().replace(/"/g, '') : '';
+                    // Remove starting/ending quotes and replace double quotes with single quote inside content
+                    let value = values[index].replace(/^"|"$/g, '').replace(/""/g, '"').trim();
                     obj[header] = value;
                 });
-                // Source Term is usually derived from the filename of the form response
-                obj['Source_Term'] = fileName.replace(".csv", "").split(" - ")[0].trim(); 
+
+                obj['Source_Term'] = fileName.replace(".csv", "").split(" - ")[0].trim();
                 data.push(obj);
             }
             return data;
@@ -327,38 +364,61 @@
             let combinedData = dataFrames.flat();
             if (combinedData.length === 0) return { overallMetrics: [], subjectAverages: {}, qualitative: { positive: [], improvement: [] } };
 
+            // 1. Clean Subject data
             combinedData = cleanSubject(combinedData);
             
-            // Apply scoring
+            // 2. Apply scoring
             const scoreCols = [];
+            // Create a temporary map to robustly find the correct score column name, ignoring extra spaces.
+            const cleanMap = {};
+            Object.keys(FEEDBACK_COL_MAP).forEach(key => {
+                cleanMap[key.trim()] = { internalName: FEEDBACK_COL_MAP[key], originalName: key };
+            });
+
             combinedData.forEach(row => {
-                Object.keys(FEEDBACK_COL_MAP).forEach(originalKey => {
-                    const newKey = FEEDBACK_COL_MAP[originalKey];
-                    const value = row[originalKey] || '';
-                    if (newKey.endsWith('_Score')) {
-                        let score = 0;
-                        if (newKey.includes('Clarity') || newKey.includes('Interest')) {
-                            score = CLARITY_INTEREST_MAP[value] || 0;
-                        } else if (newKey.includes('Speed')) {
-                            score = SPEED_MAP[value] || 0;
-                        } else if (newKey.includes('Comfort')) {
-                            score = COMFORT_MAP[value] || 0;
-                        } else { // Frequency-based
-                            score = FREQUENCY_MAP[value] || 0;
+                Object.keys(row).forEach(actualHeader => {
+                    const cleanHeader = actualHeader.trim();
+                    
+                    if (cleanMap[cleanHeader]) {
+                        const mapEntry = cleanMap[cleanHeader];
+                        const newKey = mapEntry.internalName;
+                        const value = row[actualHeader] || ''; // Value is already cleaned in csvToJson
+                        
+                        if (newKey.endsWith('_Score')) {
+                            let score = 0;
+                            const trimmedValue = value.trim();
+                            if (newKey.includes('Clarity') || newKey.includes('Interest')) {
+                                score = CLARITY_INTEREST_MAP[trimmedValue] || 0;
+                            } else if (newKey.includes('Speed')) {
+                                score = SPEED_MAP[trimmedValue] || 0;
+                            } else if (newKey.includes('Comfort')) {
+                                score = COMFORT_MAP[trimmedValue] || 0;
+                            } else { // Frequency-based
+                                score = FREQUENCY_MAP[trimmedValue] || 0;
+                            }
+                            row[newKey] = score;
+                            if (!scoreCols.includes(newKey)) scoreCols.push(newKey);
+                        } else if (newKey === 'Subject') {
+                            // Subject is already handled by cleanSubject, but we map the column here
+                            row[newKey] = row[newKey] || value || 'Unspecified';
+                        } else if (newKey.startsWith('Qual_')) {
+                            row[newKey] = value;
                         }
-                        row[newKey] = score;
-                        if (!scoreCols.includes(newKey)) scoreCols.push(newKey);
-                    } else if (newKey === 'Subject') {
-                        row[newKey] = row[newKey] || 'Unspecified';
-                    } else if (newKey.startsWith('Qual_')) {
-                        row[newKey] = value;
+                        
+                        // Delete the old, messy key from the row object to prevent confusion
+                        if (actualHeader !== newKey && !actualHeader.startsWith('Source_')) {
+                            delete row[actualHeader];
+                        }
                     }
                 });
             });
 
+            // Handle case where some scores weren't mapped correctly (for safety)
+            const finalScoreCols = scoreCols.filter(col => combinedData.some(row => row[col] !== undefined));
+
             // Calculate Overall Average Score for each row
             combinedData.forEach(row => {
-                const scores = scoreCols.map(col => row[col]).filter(s => s > 0);
+                const scores = finalScoreCols.map(col => row[col]).filter(s => s > 0);
                 row['Overall_Avg_Score'] = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
             });
 
@@ -368,17 +428,17 @@
                 const term = row['Source_Term'];
                 termAverages[term] = termAverages[term] || { count: 0, totalScores: {} };
                 termAverages[term].count++;
-                scoreCols.concat(['Overall_Avg_Score']).forEach(col => {
+                finalScoreCols.concat(['Overall_Avg_Score']).forEach(col => {
                     termAverages[term].totalScores[col] = (termAverages[term].totalScores[col] || 0) + (row[col] || 0);
                 });
             });
 
             const overallMetrics = [];
             const sortedTerms = Object.keys(termAverages).sort();
-            const term_earliest_label = sortedTerms[0];
-            const term_latest_label = sortedTerms[sortedTerms.length - 1];
-
+            
             if (sortedTerms.length >= 1) {
+                 const term_earliest_label = sortedTerms[0];
+                const term_latest_label = sortedTerms[sortedTerms.length - 1];
                 const term_earliest = termAverages[term_earliest_label];
                 const term_latest = termAverages[term_latest_label];
                 
@@ -390,7 +450,11 @@
                     'Feedback_Speed_Score': 'Feedback Speed'
                 };
 
-                Object.keys(metricMap).forEach(oldCol => {
+                // Use a single, comprehensive list of score keys for consistent display
+                const displayScoreKeys = Object.keys(metricMap).filter(key => termAverages[term_latest_label].totalScores[key] !== undefined);
+
+
+                displayScoreKeys.forEach(oldCol => {
                     const t1 = (term_earliest.totalScores[oldCol] || 0) / term_earliest.count;
                     const t3 = (term_latest.totalScores[oldCol] || 0) / term_latest.count;
                     overallMetrics.push({
@@ -413,7 +477,7 @@
                 subjectTerms[key] = subjectTerms[key] || { data: [], totalScores: {} };
                 subjectTerms[key].data.push(row);
                 
-                scoreCols.concat(['Overall_Avg_Score']).forEach(col => {
+                finalScoreCols.concat(['Overall_Avg_Score']).forEach(col => {
                     subjectTerms[key].totalScores[col] = (subjectTerms[key].totalScores[col] || 0) + (row[col] || 0);
                 });
             });
@@ -424,19 +488,20 @@
                 const count = group.data.length;
                 
                 const avgScores = {};
-                scoreCols.forEach(col => {
-                    avgScores[col] = group.totalScores[col] / count;
+                finalScoreCols.forEach(col => {
+                    avgScores[col] = (group.totalScores[col] || 0) / count;
                 });
                 
-                const lowestScoreCol = scoreCols.reduce((minCol, col) => 
-                    (avgScores[col] || 0) < (avgScores[minCol] || 0) ? col : minCol, scoreCols[0]
-                );
+                const lowestScoreCol = finalScoreCols.length > 0 ? finalScoreCols.reduce((minCol, col) => 
+                    (avgScores[col] || 0) < (avgScores[minCol] || 0) ? col : minCol, finalScoreCols[0]
+                ) : 'N/A_Score';
+                
                 const lowestAreaName = lowestScoreCol.replace('_Score', '').replace('_', ' ').split('(')[0].trim().toUpperCase();
 
                 subjectAverages[subject] = subjectAverages[subject] || { full_history: [] };
                 subjectAverages[subject].full_history.push({
                     Source_Term: term,
-                    Overall_Avg_Score: avgScores['Overall_Avg_Score'],
+                    Overall_Avg_Score: avgScores['Overall_Avg_Score'] || 0,
                     Lowest_Area: lowestAreaName
                 });
                 
@@ -562,7 +627,7 @@
          */
         const analyzeObservationData = (observationData) => {
             let combinedData = observationData;
-            if (combinedData.length === 0) return { overallMetrics: [], subjectAverages: {} };
+            if (combinedData.length === 0) return { overallMetrics: [], subjectAverages: {}, rawData: [] };
 
             // Ensure numeric scores and clean subjects
             const OBS_SCORE_COLS = ['Pace', 'Engagement', 'Management'];
@@ -1036,20 +1101,22 @@
 
             try {
                 // 1. Process Student Feedback Files
+                updateUIState(true, '1/3. Reading and Parsing CSV Files...');
                 const feedbackDataPromises = feedbackFiles.map(processFile);
                 const feedbackDataFrames = await Promise.all(feedbackDataPromises);
+                
+                updateUIState(true, '1/3. Analyzing Student Feedback Data...');
                 const studentFeedbackResults = analyzeStudentFeedback(feedbackDataFrames);
                 
                 // 2. Process Observation Data (Using LLM if text is present)
                 let structuredObservationData = [];
                 let observationResults = { overallMetrics: [], subjectAverages: {}, rawData: [] };
                 if (observationText) {
-                    updateUIState(true, '1/3. Extracting Observation Data using LLM...');
+                    updateUIState(true, '2/3. Extracting Observation Data using LLM...');
                     structuredObservationData = await extractObservationDataWithGemini(observationText);
                     observationResults = analyzeObservationData(structuredObservationData);
                 }
-                updateUIState(true, '2/3. Analyzing Feedback and Observation...');
-
+                
                 // 3. Generate Self-Assessment
                 updateUIState(true, '3/3. Generating Self-Assessment Report against College Standards...');
                 const selfAssessmentData = await generateSelfAssessment(studentFeedbackResults, observationResults, HC_QUALITY_MATRIX_CONTENT);
@@ -1072,6 +1139,8 @@
                 let userMessage = error.message || error;
                 if (userMessage.includes("LLM returned an invalid candidate structure")) {
                     userMessage = "LLM Extraction Failed: The observation text was too ambiguous or empty. Please ensure the text contains subject, term, and clear feedback on Pace, Engagement, and Management (1-5 scores or descriptive text).";
+                } else if (userMessage.includes("Error parsing")) {
+                    userMessage = `Data Parsing Failed: Check if your CSV files are correctly formatted. ${userMessage}`;
                 }
                 updateUIState(false, `Analysis failed: ${userMessage}.`, true);
             }
