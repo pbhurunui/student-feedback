@@ -67,7 +67,7 @@
     <!-- Main Content Grid -->
     <div id="content-grid" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        <!-- Column 1: Executive Summary & Strengths -->
+        <!-- Column 1: Executive Summary, Strengths, and Observation -->
         <div class="lg:col-span-1 space-y-6">
             <div id="executive-summary" class="feedback-card rounded-xl p-6">
                 <h2 class="text-2xl font-bold theme-text mb-4">Executive Summary</h2>
@@ -80,6 +80,16 @@
                     <!-- Strengths will be inserted here -->
                 </ul>
             </div>
+
+            <!-- LESSON OBSERVATION CARD -->
+            <div id="lesson-observation" class="feedback-card rounded-xl p-6 border-l-4 border-yellow-500 bg-yellow-50/50">
+                <h2 class="text-2xl font-bold text-yellow-700 mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.55 4.55a.5.5 0 010 .7l-4.55 4.55a.5.5 0 01-.7 0l-4.55-4.55a.5.5 0 010-.7l4.55-4.55a.5.5 0 01.7 0zM9 13a4 4 0 110-8 4 4 0 010 8z"></path></svg>
+                    Lesson Observation Insight
+                </h2>
+                <p class="text-gray-700 leading-relaxed text-sm italic" id="observation-text"></p>
+            </div>
+            <!-- END LESSON OBSERVATION CARD -->
         </div>
 
         <!-- Column 2: Quantitative Metrics -->
@@ -125,7 +135,7 @@
             <div id="optimization-area" class="feedback-card rounded-xl p-6">
                 <h2 class="text-2xl font-bold theme-text mb-4">Key Area for Optimization</h2>
                 <ul id="optimization-list" class="list-none space-y-4">
-                    <!-- Optimizations will be inserted here -->
+                    <!-- Optimizations will be inserted here, dynamically based on subject -->
                 </ul>
             </div>
         </div>
@@ -141,10 +151,11 @@
         const optimizationList = document.getElementById('optimization-list');
         const subjectFilters = document.getElementById('subject-filters');
         const qualitativeInsight = document.getElementById('qualitative-insight');
+        const observationText = document.getElementById('observation-text');
         
         let currentSubject = "All Subjects"; 
         
-        // --- 1. DATA MODEL (Now includes subject-specific data) ---
+        // --- 1. DATA MODEL (Now includes Lesson Observation and DYNAMIC Optimizations) ---
         
         const analysisData = {
             subjects: ["All Subjects", "Music", "Ako", "Digital Technology"],
@@ -166,7 +177,20 @@
                         t3: ["Practical Application: \"How much practical time we get.\"", "Differentiated Support: \"Always try to see our point of views.\"", "Engagement Methods: \"Very fun in the activities,\" specifically mentioning *Quizlet*."]
                     },
                     strengths: ["Supportive Climate", "Effective Feedback", "Differentiated Instruction"],
-                    insight: "The shift indicates that the positive environment established early on allowed you to successfully implement and refine new, effective teaching strategies that students specifically recognize and value later in the year."
+                    insight: "The shift indicates that the positive environment established early on allowed you to successfully implement and refine new, effective teaching strategies that students specifically recognize and value later in the year.",
+                    observation: "Observation noted strong teacher presence and clear transition commands. Use of individual check-ins was effective during independent work. **Opportunity noted to consolidate instructions for group work before starting the task.**",
+                    optimizations: [
+                        {
+                            title: "Consolidate Group Task Instructions",
+                            description: "Address the Observation note by spending 2-3 minutes consolidating and visually displaying group instructions (success criteria, roles) before starting group tasks across all subjects.",
+                            rationale: "Ensures all students and groups start the task correctly and reduces initial off-task behaviour, supporting the 'Growth' in lesson interest."
+                        },
+                        {
+                            title: "Implement Structured Check-in Rotation",
+                            description: "Implement a structured rotation to check in with every group/individual at least once every 10 minutes during practical work to quickly identify and solve stagnation issues.",
+                            rationale: "Directly addresses T3 qualitative feedback about needing 'slightly more often' check-ins, converting general support into targeted monitoring."
+                        }
+                    ]
                 },
                 "Music": {
                     summary: "Music feedback indicates a sharp improvement driven primarily by **successful practical assessments** and high student comfort. The key growth area is balancing the popular practical work with more interactive theory lessons (e.g., virtual listening rooms).",
@@ -181,7 +205,20 @@
                         t3: ["Practical: \"How much practical time we get, and the practical assessments.\"", "Teacher: \"You actually spend time with us.\"", "Approachable: \"How approachable and respectful you are to students.\""]
                     },
                     strengths: ["Highly Engaging Practical Work", "Clear Focus on Individual Needs", "Supportive Climate"],
-                    insight: "Music students shifted from general requests for resources in T1 to praising the specific structure and effectiveness of practicals in T3."
+                    insight: "Music students shifted from general requests for resources in T1 to praising the specific structure and effectiveness of practicals in T3.",
+                    observation: "The lesson focused heavily on practical rehearsal. Teacher utilized non-verbal cues (e.g., pointing, hand signals) effectively. **Challenge: Students occasionally struggled to find sheet music quickly; needs better systemization and centralized organization.**",
+                    optimizations: [
+                        {
+                            title: "Improve Resource Systemization",
+                            description: "Organize sheet music and shared resources into clearly labelled, centralized digital folders (e.g., Google Drive) or physical binders, following up on the observation note.",
+                            rationale: "Directly addresses the observation challenge, minimizing transition time and preventing student frustration during practical setups."
+                        },
+                        {
+                            title: "Gamify Theory via Quizlet & Live Rhythm Challenges",
+                            description: "Prioritize creating and implementing more interactive theory elements (e.g., rhythm flashcards, Quizlet sets) to balance the high demand for practical work.",
+                            rationale: "Converts the T1 request for theory resources into engaging activities, capitalizing on the overall 'Major Growth' in lesson interest."
+                        }
+                    ]
                 },
                 "Ako": {
                     summary: "Ako (Advisory/Wellbeing) feedback shows exceptional performance in building **trust and efficiency**. Students highly value the 'straight to the point' approach. The main focus for improvement is integrating *more* engaging group discussions into goal-setting.",
@@ -196,7 +233,20 @@
                         t3: ["Efficiency: \"U are straight to the point and short and clear on explaining things.\"", "Teacher: \"Always try to see our point of views.\"", "Quick Feedback: \"Very quick to get back results and feedback.\""]
                     },
                     strengths: ["High Clarity and Efficiency", "Consistent Support in Personal Goal Setting", "Positive Teacher/Student Relationship"],
-                    insight: "The consistency and clarity of the Ako program from T1 to T3 established high levels of student trust, moving from 'friendly' to 'efficient and trusted.'"
+                    insight: "The consistency and clarity of the Ako program from T1 to T3 established high levels of student trust, moving from 'friendly' to 'efficient and trusted.'",
+                    observation: "The session was highly personalized, focusing on student goal reviews. The teacher's **active listening was a clear strength**, with excellent follow-up questions. Challenge: Lack of whole-group activity limited peer inspiration and shared learning.",
+                    optimizations: [
+                        {
+                            title: "Introduce Peer Inspiration Component",
+                            description: "Add a 5-minute structured 'Goal Showcase' or 'Wins & Challenges' segment once a fortnight to facilitate whole-group discussion and shared learning, addressing the observation challenge.",
+                            rationale: "Combats the observation note that the lack of whole-group activity limits peer inspiration, leveraging the high level of existing student comfort."
+                        },
+                        {
+                            title: "Integrate Interactive Wellbeing Scenarios",
+                            description: "Use quick-fire ethical or social scenario discussions (e.g., 'What would you do if...') to make the wellbeing/theory components of Ako more engaging.",
+                            rationale: "Builds on the 'Growth' in enjoyment while maintaining the program's necessary efficiency and straightforward approach."
+                        }
+                    ]
                 },
                 "Digital Technology": {
                     summary: "Digital Technology demonstrates solid progress, but T3 feedback highlights a need for **more active monitoring during collaborative coding/debugging sessions**. The core strength is making complex topics 'exciting' and fun, despite a perceived slight drop in interest during difficult project phases.",
@@ -211,37 +261,28 @@
                         t3: ["Excitement: \"The way you make it exciting.\"", "Improvement: \"Checking in to see if the groups need help slightly more often.\"", "Teacher: \"You are laid back.\""]
                     },
                     strengths: ["Engaging Complex Topics", "Varied Instructional Methods", "High Support When Asked"],
-                    insight: "The growth in teaching methods is visible, but the complexity of T3 projects exposes a need for closer group monitoring to prevent student stagnation during debugging."
+                    insight: "The growth in teaching methods is visible, but the complexity of T3 projects exposes a need for closer group monitoring to prevent student stagnation during debugging.",
+                    observation: "Observation confirmed students were deeply engaged in coding challenges. The teacher circulated but **spent long periods with single, high-needs groups**. Opportunity: Implement a 'traffic light' or visible cue system for groups to signal immediate help needs.",
+                    optimizations: [
+                        {
+                            title: "Tighter Debugging Rotation & Cue System",
+                            description: "Implement a rapid 3-minute check-in rotation during practical debugging sessions. Use a visible 'Traffic Light' system (Red/Yellow/Green flags) for groups to signal immediate help needs, addressing both the Observation and T3 feedback.",
+                            rationale: "Addresses the 'Slight Drop' in interest metric and the 'spent long periods with single groups' observation, ensuring more consistent support."
+                        },
+                        {
+                            title: "Gamify Theory via Live-Coding Challenges",
+                            description: "To boost engagement, use live, competitive coding challenges (like code-golf or small feature additions) for core technical concepts, leveraging the 'exciting' qualitative theme.",
+                            rationale: "Counteracts potential frustration from T3 project complexity and leverages the T1 desire for more 'game-like' engagement."
+                        }
+                    ]
                 }
             },
 
-            optimizations: [
-                {
-                    title: "Active Group Monitoring (T3 Feedback)",
-                    description: "Address the T3 feedback regarding checking in on groups more often. This may involve implementing a structured rotation or using non-verbal signals for group needs during practical tasks.",
-                    subject_focus: {
-                        "Music": "Focus on checking in with instrumental groups (bands, composition) every 5-7 minutes during practical time.",
-                        "Ako": "Focus on checking in with students during independent goal-setting or online research tasks to ensure focus and progress.",
-                        "Digital Technology": "Focus on debugging/coding groups, especially when they hit a roadblock, to prevent long periods of stagnation.",
-                        "All Subjects": "Use the structured rotation technique for group work across all subjects."
-                    }
-                },
-                {
-                    title: "Theory Engagement & Balance (T3 Feedback)",
-                    description: "Prioritize creating and implementing more gamified/interactive methods to balance the popular practical work, leveraging the positive T3 response to Quizlet.",
-                    subject_focus: {
-                        "Music": "Create interactive rhythm/notation games (Kahoot/Quizlet) and virtual listening rooms.",
-                        "Ako": "Use structured debate or quick-fire ethical scenario discussions for theory topics.",
-                        "Digital Technology": "Implement live-coding challenges or collaborative documentation writing tasks.",
-                        "All Subjects": "Expand use of gamification for core theoretical concepts."
-                    }
-                }
-            ]
+            // NOTE: Global optimization array removed since data is now subject-specific.
         };
 
         // --- 2. RENDERING FUNCTIONS ---
         
-        // Removed hardcoded T1/T3 labels from table headers for dynamic content
         function renderMetrics(metrics) {
             metricsBody.innerHTML = metrics.map(row => {
                 const t1Content = row.t1.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
@@ -279,18 +320,18 @@
             `).join('');
         }
 
-        function renderOptimizations(optimizations, subject) {
+        // UPDATED: Now receives the subject's optimization array directly
+        function renderOptimizations(optimizations) {
             optimizationList.innerHTML = optimizations.map((opt, index) => {
-                const focus = opt.subject_focus[subject] || opt.subject_focus["All Subjects"];
                 return `
                     <li class="border-l-4 border-r-2 p-4 rounded-lg bg-red-50/50 shadow-md transition-all duration-300">
                         <h3 class="font-bold text-lg text-red-700 mb-2 flex items-center">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                             ${index + 1}. ${opt.title}
                         </h3>
-                        <p class="text-gray-700 mb-3">${opt.description}</p>
-                        <div class="p-3 mt-2 rounded-md bg-white border border-dashed theme-text font-semibold text-sm">
-                            <span class="theme-text">Subject Focus:</span> ${focus}
+                        <p class="text-gray-700 mb-2">${opt.description}</p>
+                        <div class="p-3 mt-2 rounded-md bg-white border border-dashed text-sm">
+                            <span class="font-bold text-gray-600">Rationale:</span> <span class="text-gray-500">${opt.rationale}</span>
                         </div>
                     </li>
                 `;
@@ -312,6 +353,10 @@
             }).join('');
         }
 
+        function renderObservation(text) {
+            observationText.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        }
+
         // --- 3. CONTROLLER / EVENT HANDLER ---
 
         function setSubjectFilter(subject) {
@@ -325,10 +370,11 @@
             renderMetrics(data.metrics);
             renderQualitative(data.qualitative.t1, data.qualitative.t3, data.insight);
             renderStrengths(data.strengths);
-            
+            renderObservation(data.observation);
+            renderOptimizations(data.optimizations); // UPDATED to use subject-specific data
+
             // Re-render components that rely on the subject for styling/text
             renderFilters(analysisData.subjects);
-            renderOptimizations(analysisData.optimizations, subject);
 
             // Update main summary and title to reflect the focus change
             document.getElementById('header-banner').classList.add('animate-pulse');
