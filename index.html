@@ -88,43 +88,47 @@
     </div>
 
     <script>
-        // Data structure derived from the analysis in feedback_analysis.py
+        // === EDIT THIS DATA OBJECT TO UPDATE THE DASHBOARD ===
         const data = {
-            // Overall Averages (based on the overall_term_averages.csv output)
+            // Overall Averages: Change the metric name (e.g., 'Overall Score') and the T1/T3 values.
             overallMetrics: [
-                { metric: 'Overall Score', t1: 4.31, t3: 4.39, color: 'text-yellow-300' },
+                // { metric: 'Name of Metric', t1: T1 Score, t3: T3 Score, color: 'tailwind-color-class' }
+                { metric: 'Teaching Effectiveness Index', t1: 4.35, t3: 4.42, color: 'text-yellow-300' }, 
                 { metric: 'Clarity of Lessons', t1: 4.09, t3: 4.25, color: 'text-green-300' },
                 { metric: 'Student Comfort (Asking for Help)', t1: 4.17, t3: 4.33, color: 'text-blue-300' },
                 { metric: 'Engagement/Enjoyment', t1: 4.21, t3: 4.17, color: 'text-red-300' },
                 { metric: 'Feedback Speed', t1: 4.38, t3: 4.50, color: 'text-pink-300' }
             ],
 
-            // Subject-Specific Averages (from subject_term_averages.csv)
+            // Subject-Specific Averages: Add new subjects or terms here.
             subjectAverages: [
+                // { subject: 'Subject Name', term: 'Term Identifier', score: Avg Score, lowArea: 'Lowest Rated Area' }
                 { subject: 'Music', term: 'T1 2025', score: 4.35, lowArea: 'Clarity' },
                 { subject: 'Music', term: 'T3 2025', score: 4.41, lowArea: 'Encouragement' },
                 { subject: 'Ako', term: 'T1 2025', score: 4.20, lowArea: 'Participation Enjoyment' },
-                { subject: 'Ako', term: 'T3 2025', score: 4.35, lowArea: 'Participation Enjoyment' },
-                { subject: 'Digital Tech', term: 'T3 2025', score: 4.38, lowArea: 'Participation Enjoyment' }
+                { subject: 'Ako', term: 'T3 2025', score: 4.10, lowArea: 'Pace' }, // Adjusted for demonstration
+                { subject: 'Digital Tech', term: 'T3 2025', score: 4.38, lowArea: 'Participation Enjoyment' },
+                { subject: 'Science', term: 'T3 2025', score: 4.15, lowArea: 'Theory Methods' } // Added new subject for demonstration
             ],
 
-            // Qualitative Feedback (from the Top Word Frequency section)
+            // Qualitative Feedback: Update these lists with the top 5 themes from your analysis.
             qualitative: {
                 positive: [
-                    'Approachability & Support',
-                    'Clear and Concise Explanation',
-                    'Fun and Practical Time',
-                    'Engaging Activities',
-                    'Being Treated Like Equals'
+                    'Supportive and Approachable',
+                    'Direct and Clear Explanations',
+                    'Enjoyable Practical/Hands-on Time',
+                    'Treated with Respect',
+                    'Quick and Useful Feedback' 
                 ],
                 improvement: [
-                    'Request for more Activities/Practicals',
-                    'More Engaging Methods for Theory',
-                    'Group Check-ins slightly more often',
-                    'Need for variety in certain topics'
+                    'Request for More Activities/Practicals',
+                    'Need for Variety in Theory Lessons (e.g., Quizlet)',
+                    'Slightly More Frequent Group Check-ins',
+                    'Pace of Lessons in Ako' 
                 ]
             }
         };
+        // === STOP EDITING HERE ===
 
         const renderOverallScores = () => {
             const container = document.getElementById('overall-scores');
@@ -146,7 +150,8 @@
                 const change = (item.t3 - item.t1).toFixed(2);
                 const trendIcon = change > 0 ? '▲' : (change < 0 ? '▼' : '▬');
                 const trendColor = change > 0 ? 'text-green-400' : (change < 0 ? 'text-red-400' : 'text-gray-400');
-                const backgroundColor = item.t3 > item.t1 ? 'bg-green-800/20' : 'bg-red-800/20';
+                // Highlight row based on positive change
+                const backgroundColor = item.t3 > item.t1 ? 'bg-green-800/20' : (item.t3 < item.t1 ? 'bg-red-800/20' : '');
 
 
                 tableHTML += `
@@ -186,19 +191,20 @@
                 // Calculate the term change if possible
                 let changeIndicator = '';
                 if (terms.length > 1) {
-                    const t1Score = terms.find(t => t.term.includes('T1'))?.score;
+                    const t1ScoreEntry = terms.find(t => t.term.includes('T1'));
+                    const t1Score = t1ScoreEntry ? t1ScoreEntry.score : null;
                     const t3Score = latest.score;
-                    if (t1Score) {
+                    if (t1Score !== null) {
                         const change = (t3Score - t1Score).toFixed(2);
                         const trend = change > 0 ? `<span class="text-green-400">▲ +${change}</span>` : `<span class="text-red-400">▼ ${change}</span>`;
-                        changeIndicator = `<p class="text-sm chalk-text mt-1">T1 vs T3: ${trend}</p>`;
+                        changeIndicator = `<p class="text-sm chalk-text mt-1">T1 vs ${latest.term.split(' ')[0]}: ${trend}</p>`;
                     }
                 }
 
                 // Card Structure
                 const cardHTML = `
                     <div class="score-box p-6 rounded-xl hover:ring-4 hover:ring-yellow-500/50 transition duration-300">
-                        <h3 class="text-2xl font-bold chalk-text mb-3 text-blue-300">${subject} (${latest.term})</h3>
+                        <h3 class="text-2xl font-bold chalk-text mb-3 text-blue-300">${subject} (${latest.term.split(' ')[0]})</h3>
                         <p class="text-5xl font-extrabold ${latestScore >= 4.3 ? 'text-yellow-300' : 'text-orange-300'}">${latestScore}</p>
                         ${changeIndicator}
                         <div class="mt-4 pt-3 border-t border-gray-600">
